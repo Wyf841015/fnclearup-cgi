@@ -1,17 +1,18 @@
 #!/bin/bash
 # FnClearup CGI API - Pure Bash CGI
-# Version: 0.2.3
+# Version: 0.2.4
 
-VERSION="0.2.3"
+VERSION="0.2.4"
 PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
+DEBUG_LOG="/tmp/fnclearup_debug.log"
 
 json_escape() {
     local str="$1" result="" i c
     for ((i=0; i<${#str}; i++)); do
         c="${str:i:1}"
         case "$c" in
-            \\) result+="\\\\" ;;
+            \\\\) result+="\\\\" ;;
             \") result+="\\\"" ;;
             $'\n') result+="\\n" ;;
             $'\t') result+="\\t" ;;
@@ -26,36 +27,50 @@ json_str() { printf '%s' "$(json_escape "$1")"; }
 read_body() { cat; }
 
 get_installed_apps() {
-    appcenter-cli list 2>/dev/null | while IFS= read -r line; do
-        # Skip empty lines
-        [ -z "$(echo "$line" | tr -d ' 	')" ] && continue
-        # Skip header line (has "APP NAME" text)
-        echo "$line" | grep -q "APP NAME" && continue
-        # Skip separator lines (contain box-drawing chars ─ ┌ ┬ ┐ ├ ┼ ┤ └ ┘ │)
-        echo "$line" | grep -qE '^[\s]*[┌┬┐├┼┤└┘─││┃]+[\s]*$' && continue
-        # Must have vertical bar
-        echo "$line" | grep -q "│" || continue
+    echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
+    echo "PATH=$PATH" >> "$DEBUG_LOG"
+    echo "command -v=$(command -v appcenter-cli 2>&1)" >> "$DEBUG_LOG"
+    
+    local output
+    output=$(appcenter-cli list 2>>"$DEBUG_LOG")
+    local cli_status=$?
+    echo "cli_status=$cli_status" >> "$DEBUG_LOG"
+    echo "output_lines=$(echo "$output" | wc -l)" >> "$DEBUG_LOG"
+    echo "---raw start---" >> "$DEBUG_LOG"
+    echo "$output" | head -5 >> "$DEBUG_LOG"
+    echo "---raw end---" >> "$DEBUG_LOG"
+    
+    [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no output" >> "$DEBUG_LOG"; return 1; }
 
-        # Strip leading/trailing │
+    local count=0
+    echo "$output" | while IFS= read -r line; do
+        echo "LINE[$count]: $line" >> "$DEBUG_LOG"
+        count=$((count+1))
+        
+        [ -z "$(echo "$line" | tr -d ' \t')" ] && { echo "  SKIP:empty" >> "$DEBUG_LOG"; continue; }
+        echo "$line" | grep -q "APP NAME" && { echo "  SKIP:header" >> "$DEBUG_LOG"; continue; }
+        echo "$line" | grep -qE '^[[:space:]]*[┌┬┐├┼┤└┘─│┃┴┬]+[[:space:]]*$' && { echo "  SKIP:separator" >> "$DEBUG_LOG"; continue; }
+        echo "$line" | grep -q "│" || { echo "  SKIP:no_bar" >> "$DEBUG_LOG"; continue; }
+
         line="${line#│}"
         line="${line%│}"
-
-        # Split by │ into array
         IFS='│' read -ra parts <<< "$line"
         col1="${parts[0]}"
         col2="${parts[1]}"
-        # Trim whitespace
         col1="${col1#"${col1%%[![:space:]]}"}"
         col1="${col1%"${col1##*[![:space:]]}"}"
         col2="${col2#"${col2%%[![:space:]]}"}"
         col2="${col2%"${col2##*[![:space:]]}"}"
 
-        [ -z "$col1" ] && continue
-        [ "$col1" = "APP NAME" ] && continue
-        [ "$col1" = "NONE" ] && continue
+        echo "  col1=[$col1] col2=[$col2]" >> "$DEBUG_LOG"
+        [ -z "$col1" ] && { echo "  SKIP:col1empty" >> "$DEBUG_LOG"; continue; }
+        [ "$col1" = "APP NAME" ] && { echo "  SKIP:APP_NAME" >> "$DEBUG_LOG"; continue; }
+        [ "$col1" = "NONE" ] && { echo "  SKIP:NONE" >> "$DEBUG_LOG"; continue; }
 
+        echo "  OUT: ${col1}\t${col2}" >> "$DEBUG_LOG"
         echo -e "${col1}\t${col2}"
     done | sort -u
+    echo "=== done ===" >> "$DEBUG_LOG"
 }
 
 do_version() {
@@ -71,11 +86,16 @@ do_scan() {
     printf '%s\n' 'Cache-Control: no-cache'
     printf '%s\n' ''
 
+    echo "=== do_scan ===" >> "$DEBUG_LOG"
+
     declare -A installed_map
     while IFS=$'\t' read -r appname disp; do
         [ -z "$appname" ] && continue
         installed_map["${appname,,}"]="$disp"
     done < <(get_installed_apps)
+
+    echo "installed_map size=${#installed_map[@]}" >> "$DEBUG_LOG"
+    for k in "${!installed_map[@]}"; do echo "  map[$k]=${installed_map[$k]}" >> "$DEBUG_LOG"; done
 
     first_orphan=1
     orphan_json=""
@@ -128,6 +148,7 @@ do_scan() {
 
     [ -z "$orphan_json" ] && orphan_json="{}" || orphan_json="{ ${orphan_json} }"
 
+    echo "scan_result: installed=${#installed_map[@]} orphan=?" >> "$DEBUG_LOG"
     printf '%s\n' "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
 }
 
