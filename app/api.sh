@@ -131,9 +131,9 @@ do_version() {
 }
 
 do_scan() {
-    printf '%s\n' 'Status: 200'
     [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
 
+    printf '%s\n' 'Status: 200'
     printf '%s\n' 'Content-Type: application/json'
     printf '%s\n' 'Cache-Control: no-cache'
     printf '%s\n' ''
