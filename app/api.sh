@@ -7,6 +7,15 @@ PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
 DEBUG_LOG="/tmp/fnclearup_debug.log"
 
+# Debug: log all CGI env vars
+echo "=== api.sh invoked ===" >> /tmp/fnclearup_debug.log
+echo "PATH_INFO=$PATH_INFO" >> /tmp/fnclearup_debug.log
+echo "REQUEST_METHOD=$REQUEST_METHOD" >> /tmp/fnclearup_debug.log
+echo "REQUEST_URI=$REQUEST_URI" >> /tmp/fnclearup_debug.log
+echo "SCRIPT_NAME=$SCRIPT_NAME" >> /tmp/fnclearup_debug.log
+echo "SERVER_NAME=$SERVER_NAME" >> /tmp/fnclearup_debug.log
+echo "=== end env ===" >> /tmp/fnclearup_debug.log
+
 json_escape() {
     local str="$1" result="" i c
     for ((i=0; i<${#str}; i++)); do
