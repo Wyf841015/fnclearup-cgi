@@ -1,13 +1,37 @@
 #!/bin/bash
-# FnClearup CGI API 脚本 (纯 Bash + python3 for JSON)
-# 版本: 0.2.1
+# FnClearup CGI API - Pure Bash CGI, no external dependencies
+# Version: 0.2.2
 
-VERSION="0.2.1"
+VERSION="0.2.2"
 
 PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
 
-# ========== 获取已安装应用 ==========
+# json_escape: pure bash char-loop JSON escaping
+json_escape() {
+    local str="$1"
+    local result=""
+    local i c
+    for ((i=0; i<${#str}; i++)); do
+        c="${str:i:1}"
+        case "$c" in
+            \\) result+="\\\\" ;;
+            \") result+="\\\"" ;;
+            $'\n') result+="\\n" ;;
+            $'\t') result+="\\t" ;;
+            *) result+="$c" ;;
+        esac
+    done
+    printf '%s' "$result"
+}
+
+json_str() {
+    printf '%s' "$(json_escape "$1")"
+}
+
+read_body() {
+    cat
+}
 
 get_installed_apps() {
     if ! command -v appcenter-cli &>/dev/null; then
@@ -19,24 +43,36 @@ get_installed_apps() {
 
     echo "$output" | while IFS= read -r line; do
         [ -z "$(echo "$line" | tr -d ' \t')" ] && continue
-        # 跳过边框行（含水平线字符）
-        echo "$line" | grep -q '[─┼┬┴┤├┘┐└┌─]' && continue
-        # 跳过表头
-        echo "$line" | grep -qiE '(APP[N_]?NAME|DISPLAY[N_]?NAME|^ID$)' && continue
-        # 只处理含 │ 的行
+        echo "$line" | grep -qE '[┌┬┐├┼┤└┘─│]┃' && continue
+        echo "$line" | grep -qiE '(APPNAME|DISPLAY.NAME|^ID$)' && continue
         echo "$line" | grep -q '│' || continue
 
-        # 按 │ 分割取前两列
-        appname=$(echo "$line" | awk -F'│' '{print $1}' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-        disp=$(echo "$line" | awk -F'│' '{print $2}' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        col1=$(echo "$line" | awk -F'│' '{print $1}' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        col2=$(echo "$line" | awk -F'│' '{print $2}' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
-        [ -n "$appname" ] && echo -e "$appname	$disp"
+        [ -n "$col1" ] && echo -e "${col1}\t${col2}"
     done | sort -u
 }
 
-# ========== 扫描 ==========
+do_version() {
+    printf '%s\n' 'Content-Type: application/json'
+    printf '%s\n' ''
+    printf '%s\n' "{\"version\": $(json_str "$VERSION"), \"success\": true}"
+}
 
 do_scan() {
+    if [ "$REQUEST_METHOD" != "POST" ]; then
+        printf '%s\n' 'Status: 405 Method Not Allowed'
+        printf '%s\n' 'Content-Type: text/plain'
+        printf '%s\n' ''
+        printf '%s\n' 'POST required'
+        exit 0
+    fi
+
+    printf '%s\n' 'Content-Type: application/json'
+    printf '%s\n' 'Cache-Control: no-cache'
+    printf '%s\n' ''
+
     declare -A installed_map
     while IFS=$'\t' read -r appname disp; do
         [ -z "$appname" ] && continue
@@ -44,8 +80,7 @@ do_scan() {
     done < <(get_installed_apps)
 
     first_orphan=1
-    orphan_pairs=""
-
+    orphan_json=""
     for vol_path in /mnt/vol*; do
         [ -d "$vol_path" ] || continue
         for app_dir in "$vol_path"/@app*; do
@@ -63,21 +98,22 @@ do_scan() {
                 fi
 
                 if [ "$is_installed" -eq 0 ]; then
-                    [ $first_orphan -eq 0 ] && orphan_pairs="${orphan_pairs},"
-                    first_orphan=0
-
-                    subdirs_json="["
                     first_sub=1
+                    subdirs_json=""
                     while IFS= read -r sub; do
                         [ -z "$sub" ] && continue
+                        sub_name="${sub##*/}"
                         [ $first_sub -eq 0 ] && subdirs_json="${subdirs_json},"
                         first_sub=0
-                        subdirs_json="${subdirs_json}\"$(python3 -c "import sys, json; sys.stdout.write(json.dumps(sys.stdin.read()))" 2>/dev/null <<< "$sub")\""
+                        subdirs_json="${subdirs_json}$(json_str "$sub_name")"
                     done < <(find "$inst_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
-                    subdirs_json="${subdirs_json}]"
 
-                    inst_name_json=$(python3 -c "import sys, json; sys.stdout.write(json.dumps('$inst_name'))" 2>/dev/null)
-                    orphan_pairs="${orphan_pairs}${inst_name_json}: ${subdirs_json}"
+                    [ -z "$subdirs_json" ] && subdirs_json="[]"
+                    [ "${subdirs_json:0:1}" != "[" ] && subdirs_json="[${subdirs_json}]"
+
+                    [ $first_orphan -eq 0 ] && orphan_json="${orphan_json},"
+                    first_orphan=0
+                    orphan_json="${orphan_json}$(json_str "$inst_name"): ${subdirs_json}"
                 fi
             done
         done
@@ -88,142 +124,126 @@ do_scan() {
     for key in "${!installed_map[@]}"; do
         [ $first -eq 0 ] && installed_json="${installed_json},"
         first=0
-        disp="${installed_map[$key]}"
-        kn=$(python3 -c "import sys, json; sys.stdout.write(json.dumps('$key'))" 2>/dev/null)
-        dn=$(python3 -c "import sys, json; sys.stdout.write(json.dumps('$disp'))" 2>/dev/null)
-        installed_json="${installed_json}{\"appname\":$kn,\"display_name\":$dn}"
+        installed_json="${installed_json}{\"appname\": $(json_str "$key"), \"display_name\": $(json_str "${installed_map[$key]}")}"
     done
     installed_json="[${installed_json}]"
 
-    if command -v python3 &>/dev/null; then
-        python3 -c "
-import sys, json
-try:
-    installed = json.loads('${installed_json}')
-except:
-    installed = []
-try:
-    orphan = json.loads('{${orphan_pairs}}')
-except:
-    orphan = {}
-print(json.dumps({'installed': installed, 'orphan': orphan, 'success': True}, ensure_ascii=False))
-"
+    if [ -z "$orphan_json" ]; then
+        orphan_json="{}"
     else
-        printf '%s\n' "{\"installed\": ${installed_json}, \"orphan\": {${orphan_pairs}}, \"success\": true}"
+        orphan_json="{ ${orphan_json} }"
     fi
-}
 
-# ========== 删除 ==========
+    printf '%s\n' "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
+}
 
 do_delete() {
-    content_length="${CONTENT_LENGTH:-0}"
-    body=""
-    if [ "$content_length" -gt 0 ] 2>/dev/null; then
-        body=$(dd bs=1 count="$content_length" 2>/dev/null)
+    if [ "$REQUEST_METHOD" != "POST" ]; then
+        printf '%s\n' 'Status: 405 Method Not Allowed'
+        printf '%s\n' 'Content-Type: text/plain'
+        printf '%s\n' ''
+        printf '%s\n' 'POST required'
+        exit 0
     fi
 
-    delete_users=0
-    echo "$body" | grep -q '"delete_users"[[:space:]]*:[[:space:]]*true' && delete_users=1
+    printf '%s\n' 'Content-Type: application/json'
+    printf '%s\n' 'Cache-Control: no-cache'
+    printf '%s\n' ''
 
-    if command -v python3 &>/dev/null; then
-        python3 -c "
-import sys, json, os, shutil, pwd, subprocess
+    local body
+    body=$(read_body)
 
-try:
-    data = json.loads('${body}')
-except:
-    data = {}
+    local delete_users=false
+    echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
 
-paths = data.get('paths', [])
-du = data.get('delete_users', False)
+    local paths_str
+    paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
 
-deleted = []
-failed = []
-users_deleted = []
-users_failed = []
+    local first_path=1
+    local deleted_json=""
+    local failed_json=""
+    local total=0
+    local failures=0
 
-for p in paths:
-    if os.path.isdir(p):
-        try:
-            shutil.rmtree(p)
-            deleted.append(p)
-        except:
-            failed.append(p)
-    elif os.path.isfile(p):
-        try:
-            os.remove(p)
-            deleted.append(p)
-        except:
-            failed.append(p)
-    else:
-        failed.append(p)
-
-    if du:
-        parts = p.split('/')
-        try:
-            idx = parts.index('app')
-            if idx + 1 < len(parts):
-                username = parts[idx+1]
-                try:
-                    pwd.getpwnam(username)
-                    r = subprocess.run(['userdel', '-r', username], capture_output=True)
-                    if r.returncode == 0:
-                        users_deleted.append(username)
-                    else:
-                        users_failed.append(username)
-                except KeyError:
-                    pass
-                except Exception:
-                    users_failed.append(username)
-        except ValueError:
-            pass
-
-result = {'deleted': deleted, 'failed': failed, 'total': len(deleted), 'failures': len(failed),
-          'users_deleted': users_deleted, 'users_failed': users_failed}
-print(json.dumps(result, ensure_ascii=False))
-"
-    else
-        printf '%s\n' '{"deleted":[],"failed":[],"total":0,"failures":0,"users_deleted":[],"users_failed":[]}'
+    if [ -n "$paths_str" ]; then
+        while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if [ -e "$path" ]; then
+                if [ -d "$path" ]; then
+                    rm -rf "$path" 2>/dev/null && stat=0 || stat=1
+                else
+                    rm -f "$path" 2>/dev/null && stat=0 || stat=1
+                fi
+                if [ $stat -eq 0 ]; then
+                    [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
+                    first_path=0
+                    deleted_json="${deleted_json}$(json_str "$path")"
+                    total=$((total + 1))
+                else
+                    [ $first_path -eq 0 ] && failed_json="${failed_json},"
+                    first_path=0
+                    failed_json="${failed_json}$(json_str "$path")"
+                    failures=$((failures + 1))
+                fi
+            else
+                [ $first_path -eq 0 ] && failed_json="${failed_json},"
+                first_path=0
+                failed_json="${failed_json}$(json_str "$path")"
+                failures=$((failures + 1))
+            fi
+        done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
     fi
+
+    local users_deleted_json=""
+    local users_failed_json=""
+    local first_user=1
+
+    if [ "$delete_users" = true ]; then
+        if [ -n "$paths_str" ]; then
+            while IFS= read -r path; do
+                [ -z "$path" ] && continue
+                username=""
+                case "$path" in
+                    /mnt/vol*/@app*/*)
+                        username="${path##*/@app*/}"
+                        username="${username%%/*}"
+                        ;;
+                esac
+                [ -z "$username" ] && continue
+                if id "$username" &>/dev/null; then
+                    userdel -r "$username" 2>/dev/null && stat=0 || stat=1
+                    if [ $stat -eq 0 ]; then
+                        [ $first_user -eq 0 ] && users_deleted_json="${users_deleted_json},"
+                        first_user=0
+                        users_deleted_json="${users_deleted_json}$(json_str "$username")"
+                    else
+                        [ $first_user -eq 0 ] && users_failed_json="${users_failed_json},"
+                        first_user=0
+                        users_failed_json="${users_failed_json}$(json_str "$username")"
+                    fi
+                fi
+            done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
+        fi
+    fi
+
+    [ -z "$deleted_json" ] && deleted_json="[]"
+    [ -z "$failed_json" ] && failed_json="[]"
+    [ -z "$users_deleted_json" ] && users_deleted_json="[]"
+    [ -z "$users_failed_json" ] && users_failed_json="[]"
+
+    printf '%s\n' "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
 }
 
-# ========== 路由 ==========
-
 case "$PATH_INFO" in
+/api/version)
+    do_version
+    ;;
 /api/scan)
-    if [ "$REQUEST_METHOD" != "POST" ]; then
-        printf '%s\n' 'Status: 405 Method Not Allowed'
-        printf '%s\n' 'Content-Type: text/plain'
-        printf '%s\n' ''
-        printf '%s\n' 'POST required'
-        exit 0
-    fi
-    printf '%s\n' 'Content-Type: application/json'
-    printf '%s\n' 'Cache-Control: no-cache'
-    printf '%s\n' ''
     do_scan
     ;;
-
 /api/delete)
-    if [ "$REQUEST_METHOD" != "POST" ]; then
-        printf '%s\n' 'Status: 405 Method Not Allowed'
-        printf '%s\n' 'Content-Type: text/plain'
-        printf '%s\n' ''
-        printf '%s\n' 'POST required'
-        exit 0
-    fi
-    printf '%s\n' 'Content-Type: application/json'
-    printf '%s\n' 'Cache-Control: no-cache'
-    printf '%s\n' ''
     do_delete
     ;;
-
-/api/version)
-    printf '%s\n' 'Content-Type: application/json'
-    printf '%s\n' ''
-    printf '%s\n' "{\"version\": \"$VERSION\"}"
-    ;;
-
 *)
     printf '%s\n' 'Status: 404 Not Found'
     printf '%s\n' 'Content-Type: text/plain'
