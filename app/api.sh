@@ -65,27 +65,22 @@ get_installed_apps() {
 
     echo "Using delimiter bytes: $(printf '%s' "$delim" | od -A n -t x1 | tr -s ' ')" >> "$DEBUG_LOG"
 
-    # Parse CLI output: strip CR, then split by delimiter using index()
-    # mawk does UTF-8 parsing by default, so we use index() for byte-level split
-    print "" | "cat > /dev/null"  # ensure subprocess starts
-    echo "$output" | awk -v delim="$delim" \
-    'BEGIN { line=0 }
+    # Replace Unicode │ (E2 94 82) with ASCII |, strip CRLF, then parse
+    echo "$output" | sed \
+    -e 's/│/|/g' \
+    -e 's/\r$//' | awk -F "|" 'BEGIN {line=0}
     {
-        gsub(//, "", $0)
         line++
-        if (line <= 3) print "AWK[" line "] len=" length($0) " raw=[" $0 "]" >> "/tmp/fnclearup_debug.log"
-        if (length($0) == 0) next
-        if (index($0, delim) == 0) next
-        f1 = substr($0, 1, index($0, delim)-1)
-        f2 = substr($0, index($0, delim)+length(delim))
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
+        if (line <= 3) print "AWK[" line "] NF=" NF " $1=[" $1 "] $2=[" $2 "]" >> "/tmp/fnclearup_debug.log"
+        if (NF < 2) next
+        f1 = $1; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
+        f2 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
         if (line <= 20) print "AWK[" line "] f1=[" f1 "] f2=[" f2 "]" >> "/tmp/fnclearup_debug.log"
         if (f1 == "" || f1 == "APP NAME" || f1 == "NONE") next
         if (f1 ~ /^[┌┬┐├┤┴┼]/) next
         printf "%s\t%s\n", f1, f2
     }
-'
+    '
 
     echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
 }
