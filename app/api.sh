@@ -1,17 +1,13 @@
 #!/bin/bash
-# FnClearup CGI API - Pure Bash CGI, no external dependencies
-# Version: 0.2.2
+# FnClearup CGI API - Pure Bash CGI
+# Version: 0.2.3
 
-VERSION="0.2.2"
-
+VERSION="0.2.3"
 PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
 
-# json_escape: pure bash char-loop JSON escaping
 json_escape() {
-    local str="$1"
-    local result=""
-    local i c
+    local str="$1" result="" i c
     for ((i=0; i<${#str}; i++)); do
         c="${str:i:1}"
         case "$c" in
@@ -25,32 +21,40 @@ json_escape() {
     printf '%s' "$result"
 }
 
-json_str() {
-    printf '%s' "$(json_escape "$1")"
-}
+json_str() { printf '%s' "$(json_escape "$1")"; }
 
-read_body() {
-    cat
-}
+read_body() { cat; }
 
 get_installed_apps() {
-    if ! command -v appcenter-cli &>/dev/null; then
-        return 1
-    fi
-    local output
-    output=$(appcenter-cli list 2>/dev/null)
-    [ $? -ne 0 ] || [ -z "$output" ] && return 1
+    appcenter-cli list 2>/dev/null | while IFS= read -r line; do
+        # Skip empty lines
+        [ -z "$(echo "$line" | tr -d ' 	')" ] && continue
+        # Skip header line (has "APP NAME" text)
+        echo "$line" | grep -q "APP NAME" && continue
+        # Skip separator lines (contain box-drawing chars ─ ┌ ┬ ┐ ├ ┼ ┤ └ ┘ │)
+        echo "$line" | grep -qE '^[\s]*[┌┬┐├┼┤└┘─││┃]+[\s]*$' && continue
+        # Must have vertical bar
+        echo "$line" | grep -q "│" || continue
 
-    echo "$output" | while IFS= read -r line; do
-        [ -z "$(echo "$line" | tr -d ' \t')" ] && continue
-        echo "$line" | grep -qE '[┌┬┐├┼┤└┘─│]┃' && continue
-        echo "$line" | grep -qiE '(APPNAME|DISPLAY.NAME|^ID$)' && continue
-        echo "$line" | grep -q '│' || continue
+        # Strip leading/trailing │
+        line="${line#│}"
+        line="${line%│}"
 
-        col1=$(echo "$line" | awk -F'│' '{print $1}' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-        col2=$(echo "$line" | awk -F'│' '{print $2}' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        # Split by │ into array
+        IFS='│' read -ra parts <<< "$line"
+        col1="${parts[0]}"
+        col2="${parts[1]}"
+        # Trim whitespace
+        col1="${col1#"${col1%%[![:space:]]}"}"
+        col1="${col1%"${col1##*[![:space:]]}"}"
+        col2="${col2#"${col2%%[![:space:]]}"}"
+        col2="${col2%"${col2##*[![:space:]]}"}"
 
-        [ -n "$col1" ] && echo -e "${col1}\t${col2}"
+        [ -z "$col1" ] && continue
+        [ "$col1" = "APP NAME" ] && continue
+        [ "$col1" = "NONE" ] && continue
+
+        echo -e "${col1}\t${col2}"
     done | sort -u
 }
 
@@ -61,13 +65,7 @@ do_version() {
 }
 
 do_scan() {
-    if [ "$REQUEST_METHOD" != "POST" ]; then
-        printf '%s\n' 'Status: 405 Method Not Allowed'
-        printf '%s\n' 'Content-Type: text/plain'
-        printf '%s\n' ''
-        printf '%s\n' 'POST required'
-        exit 0
-    fi
+    [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
 
     printf '%s\n' 'Content-Type: application/json'
     printf '%s\n' 'Cache-Control: no-cache'
@@ -128,52 +126,33 @@ do_scan() {
     done
     installed_json="[${installed_json}]"
 
-    if [ -z "$orphan_json" ]; then
-        orphan_json="{}"
-    else
-        orphan_json="{ ${orphan_json} }"
-    fi
+    [ -z "$orphan_json" ] && orphan_json="{}" || orphan_json="{ ${orphan_json} }"
 
     printf '%s\n' "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
 }
 
 do_delete() {
-    if [ "$REQUEST_METHOD" != "POST" ]; then
-        printf '%s\n' 'Status: 405 Method Not Allowed'
-        printf '%s\n' 'Content-Type: text/plain'
-        printf '%s\n' ''
-        printf '%s\n' 'POST required'
-        exit 0
-    fi
+    [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
 
     printf '%s\n' 'Content-Type: application/json'
     printf '%s\n' 'Cache-Control: no-cache'
     printf '%s\n' ''
 
-    local body
     body=$(read_body)
 
-    local delete_users=false
+    delete_users=false
     echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
 
-    local paths_str
     paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
 
-    local first_path=1
-    local deleted_json=""
-    local failed_json=""
-    local total=0
-    local failures=0
+    first_path=1 deleted_json="" failed_json="" total=0 failures=0
 
     if [ -n "$paths_str" ]; then
         while IFS= read -r path; do
             [ -z "$path" ] && continue
             if [ -e "$path" ]; then
-                if [ -d "$path" ]; then
-                    rm -rf "$path" 2>/dev/null && stat=0 || stat=1
-                else
-                    rm -f "$path" 2>/dev/null && stat=0 || stat=1
-                fi
+                [ -d "$path" ] && rm -rf "$path" 2>/dev/null && stat=0 || stat=1
+                [ -f "$path" ] && rm -f "$path" 2>/dev/null && stat=0 || stat=1
                 if [ $stat -eq 0 ]; then
                     [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
                     first_path=0
@@ -194,36 +173,28 @@ do_delete() {
         done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
     fi
 
-    local users_deleted_json=""
-    local users_failed_json=""
-    local first_user=1
+    first_user=1 users_deleted_json="" users_failed_json=""
 
     if [ "$delete_users" = true ]; then
-        if [ -n "$paths_str" ]; then
-            while IFS= read -r path; do
-                [ -z "$path" ] && continue
-                username=""
-                case "$path" in
-                    /mnt/vol*/@app*/*)
-                        username="${path##*/@app*/}"
-                        username="${username%%/*}"
-                        ;;
-                esac
-                [ -z "$username" ] && continue
-                if id "$username" &>/dev/null; then
-                    userdel -r "$username" 2>/dev/null && stat=0 || stat=1
-                    if [ $stat -eq 0 ]; then
-                        [ $first_user -eq 0 ] && users_deleted_json="${users_deleted_json},"
-                        first_user=0
-                        users_deleted_json="${users_deleted_json}$(json_str "$username")"
-                    else
-                        [ $first_user -eq 0 ] && users_failed_json="${users_failed_json},"
-                        first_user=0
-                        users_failed_json="${users_failed_json}$(json_str "$username")"
-                    fi
-                fi
-            done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
-        fi
+        while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            username=""
+            case "$path" in
+                /mnt/vol*/@app*/*) username="${path##*/@app*/}"; username="${username%%/*}" ;;
+            esac
+            [ -z "$username" ] && continue
+            id "$username" &>/dev/null || continue
+            userdel -r "$username" 2>/dev/null && stat=0 || stat=1
+            if [ $stat -eq 0 ]; then
+                [ $first_user -eq 0 ] && users_deleted_json="${users_deleted_json},"
+                first_user=0
+                users_deleted_json="${users_deleted_json}$(json_str "$username")"
+            else
+                [ $first_user -eq 0 ] && users_failed_json="${users_failed_json},"
+                first_user=0
+                users_failed_json="${users_failed_json}$(json_str "$username")"
+            fi
+        done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
     fi
 
     [ -z "$deleted_json" ] && deleted_json="[]"
@@ -235,15 +206,9 @@ do_delete() {
 }
 
 case "$PATH_INFO" in
-/api/version)
-    do_version
-    ;;
-/api/scan)
-    do_scan
-    ;;
-/api/delete)
-    do_delete
-    ;;
+/api/version) do_version ;;
+/api/scan)    do_scan    ;;
+/api/delete)  do_delete  ;;
 *)
     printf '%s\n' 'Status: 404 Not Found'
     printf '%s\n' 'Content-Type: text/plain'
