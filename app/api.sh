@@ -66,12 +66,17 @@ get_installed_apps() {
     echo "Using delimiter bytes: $(printf '%s' "$delim" | od -A n -t x1 | tr -s ' ')" >> "$DEBUG_LOG"
 
     # Use awk for reliable parsing of Unicode-delimited table output
-    # awk -F correctly splits on multi-byte UTF-8 characters
-    # Output: appname<tab>display_name (one line per installed app)
-    echo "$output" | awk -F "$delim" '
+    # Pipe through sed first to strip  from CRLF line endings
+    echo "$output" | sed 's/\r$//' | gawk -F "$delim" '
     BEGIN { line_num=0 }
     {
         line_num++
+        gsub(/\r/, "", $0)
+        
+        if (line_num <= 3) {
+            print "AWK[" line_num "] NF=" NF " len=" length($0) >> "/tmp/fnclearup_debug.log"
+        }
+        
         # Skip empty lines
         if (NF == 0 || $0 ~ /^[[:space:]]*$/) next
         # Skip box-drawing border lines (┌─┬─┐ etc)
