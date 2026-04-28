@@ -2,7 +2,7 @@
 # FnClearup CGI API - Pure Bash CGI
 # Version: 0.2.4
 
-VERSION="0.2.4"
+VERSION="0.2.7"
 PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
 DEBUG_LOG="/tmp/fnclearup_debug.log"
@@ -83,12 +83,14 @@ get_installed_apps() {
 }
 
 do_version() {
+    printf '%s\n' 'Status: 200'
     printf '%s\n' 'Content-Type: application/json'
     printf '%s\n' ''
     printf '%s\n' "{\"version\": $(json_str "$VERSION"), \"success\": true}"
 }
 
 do_scan() {
+    printf '%s\n' 'Status: 200'
     [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
 
     printf '%s\n' 'Content-Type: application/json'
@@ -162,6 +164,7 @@ do_scan() {
 }
 
 do_delete() {
+    printf '%s\n' 'Status: 200'
     [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
 
     printf '%s\n' 'Content-Type: application/json'
@@ -236,9 +239,9 @@ do_delete() {
 }
 
 case "$PATH_INFO" in
-/api/version) do_version ;;
-/api/scan)    do_scan    ;;
-/api/delete)  do_delete  ;;
+/version) do_version ;;
+/scan)    do_scan    ;;
+/delete)  do_delete  ;;
 *)
     printf '%s\n' 'Status: 404 Not Found'
     printf '%s\n' 'Content-Type: text/plain'
