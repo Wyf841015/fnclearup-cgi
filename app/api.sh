@@ -65,39 +65,27 @@ get_installed_apps() {
 
     echo "Using delimiter bytes: $(printf '%s' "$delim" | od -A n -t x1 | tr -s ' ')" >> "$DEBUG_LOG"
 
-    # Use awk for reliable parsing of Unicode-delimited table output
-    # Pipe through sed first to strip 
- from CRLF line endings
-    echo "$output" | sed 's/\r$//' | awk -F "$delim" '
-    BEGIN { line_num=0 }
+    # Parse CLI output: strip CR, then split by delimiter using index()
+    # mawk does UTF-8 parsing by default, so we use index() for byte-level split
+    print "" | "cat > /dev/null"  # ensure subprocess starts
+    echo "$output" | awk -v delim="$delim" \
+    'BEGIN { line=0 }
     {
-        line_num++
-        gsub(/\r/, "", $0)
-        
-        if (line_num <= 3) {
-            print "AWK[" line_num "] NF=" NF " len=" length($0) >> "/tmp/fnclearup_debug.log"
-        }
-        
-        # Skip empty lines
-        if (NF == 0 || $0 ~ /^[[:space:]]*$/) next
-        # Skip box-drawing border lines (┌─┬─┐ etc)
-        if ($0 ~ /^[[:space:]]*[┌┬┐├┤┴┼]/) next
-        
-        # Get field 1 and 2, trim whitespace
-        f1 = $1; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-        f2 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
-        
-        # Debug: log first 20 parsed lines
-        if (line_num <= 20) {
-            print "AWK[" line_num "] f1=[" f1 "] f2=[" f2 "]" >> "/tmp/fnclearup_debug.log"
-        }
-        
-        # Skip header row or empty
+        gsub(//, "", $0)
+        line++
+        if (line <= 3) print "AWK[" line "] len=" length($0) " raw=[" $0 "]" >> "/tmp/fnclearup_debug.log"
+        if (length($0) == 0) next
+        if (index($0, delim) == 0) next
+        f1 = substr($0, 1, index($0, delim)-1)
+        f2 = substr($0, index($0, delim)+length(delim))
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
+        if (line <= 20) print "AWK[" line "] f1=[" f1 "] f2=[" f2 "]" >> "/tmp/fnclearup_debug.log"
         if (f1 == "" || f1 == "APP NAME" || f1 == "NONE") next
-        
+        if (f1 ~ /^[┌┬┐├┤┴┼]/) next
         printf "%s\t%s\n", f1, f2
     }
-    '
+'
 
     echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
 }
