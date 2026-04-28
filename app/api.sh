@@ -37,49 +37,90 @@ read_body() { cat; }
 
 get_installed_apps() {
     echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
-    echo "PATH=$PATH" >> "$DEBUG_LOG"
-    echo "command -v=$(command -v appcenter-cli 2>&1)" >> "$DEBUG_LOG"
-    
+
     local output
-    output=$(appcenter-cli list 2>>"$DEBUG_LOG")
+    output=$(appcenter-cli list 2>&1)
     local cli_status=$?
     echo "cli_status=$cli_status" >> "$DEBUG_LOG"
-    echo "output_lines=$(echo "$output" | wc -l)" >> "$DEBUG_LOG"
-    echo "---raw start---" >> "$DEBUG_LOG"
-    echo "$output" | head -5 >> "$DEBUG_LOG"
-    echo "---raw end---" >> "$DEBUG_LOG"
-    
-    [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no output" >> "$DEBUG_LOG"; return 1; }
 
+    [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no cli output" >> "$DEBUG_LOG"; return 1; }
+
+    # Dump first 3 lines for delimiter detection
+    echo "--- raw lines for delimiter detection ---" >> "$DEBUG_LOG"
     local count=0
-    echo "$output" | while IFS= read -r line; do
-        echo "LINE[$count]: $line" >> "$DEBUG_LOG"
+    while IFS= read -r line; do
+        [[ $count -ge 3 ]] && break
+        echo "RAW[$count]=$(printf '%s' "$line" | cut -c1-200 | od -A n -t x1 | tr -s ' ' | head -1)" >> "$DEBUG_LOG"
+        echo "LINE[$count]=$line" >> "$DEBUG_LOG"
         count=$((count+1))
-        
-        [ -z "$(echo "$line" | tr -d ' \t')" ] && { echo "  SKIP:empty" >> "$DEBUG_LOG"; continue; }
-        echo "$line" | grep -q "APP NAME" && { echo "  SKIP:header" >> "$DEBUG_LOG"; continue; }
-        echo "$line" | grep -qE '^[[:space:]]*[┌┬┐├┼┤└┘─│┃┴┬]+[[:space:]]*$' && { echo "  SKIP:separator" >> "$DEBUG_LOG"; continue; }
-        echo "$line" | grep -q "│" || { echo "  SKIP:no_bar" >> "$DEBUG_LOG"; continue; }
+    done <<< "$output"
 
-        line="${line#│}"
-        line="${line%│}"
-        IFS='│' read -ra parts <<< "$line"
-        col1="${parts[0]}"
-        col2="${parts[1]}"
-        col1="${col1#"${col1%%[![:space:]]}"}"
-        col1="${col1%"${col1##*[![:space:]]}"}"
-        col2="${col2#"${col2%%[![:space:]]}"}"
-        col2="${col2%"${col2##*[![:space:]]}"}"
+    # Detect delimiter: Unicode │ (U+2502) or ASCII | (0x7C)
+    local has_unicode=0 has_ascii=0
+    if echo "$output" | head -3 | grep -q $'\xE2\x94\x82'; then
+        has_unicode=1
+        echo "Detected: Unicode" >> "$DEBUG_LOG"
+    fi
+    if echo "$output" | head -3 | grep -q $'\x7C'; then
+        has_ascii=1
+        echo "Detected: ASCII" >> "$DEBUG_LOG"
+    fi
 
-        echo "  col1=[$col1] col2=[$col2]" >> "$DEBUG_LOG"
-        [ -z "$col1" ] && { echo "  SKIP:col1empty" >> "$DEBUG_LOG"; continue; }
-        [ "$col1" = "APP NAME" ] && { echo "  SKIP:APP_NAME" >> "$DEBUG_LOG"; continue; }
-        [ "$col1" = "NONE" ] && { echo "  SKIP:NONE" >> "$DEBUG_LOG"; continue; }
+    local line_num=0
+    while IFS= read -r line; do
+        line_num=$((line_num+1))
 
-        echo "  OUT: ${col1}\t${col2}" >> "$DEBUG_LOG"
-        echo -e "${col1}\t${col2}"
-    done | sort -u
-    echo "=== done ===" >> "$DEBUG_LOG"
+        [ -z "${line// }" ] && continue
+
+        # Skip box-drawing border lines
+        if echo "$line" | grep -qE '^[[:space:]]*[┌┬┐├┤┴┼][─]*[┬┐├┤┴┼─]*[┬┐├┤┴┼][[:space:]]*$'; then
+            continue
+        fi
+
+        # Determine delimiter
+        local delim="│"
+        local pipe_char="│"
+        if [[ "$line" != *"$pipe_char"* ]]; then
+            delim="|"
+            pipe_char="|"
+        fi
+
+        # Strip leading/trailing delimiter and whitespace
+        line="${line#$pipe_char}"
+        line="${line%$pipe_char}"
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+
+        # Split by delimiter
+        local -a parts=()
+        IFS="$delim" read -ra parts <<< "$line"
+
+        # Trim each field
+        local -a trimmed=()
+        for part in "${parts[@]}"; do
+            part="${part#"${part%%[![:space:]]*}"}"
+            part="${part%"${part##*[![:space:]]}"}"
+            part="${part//\r/}"
+            trimmed+=("$part")
+        done
+
+        echo "PARSED[$line_num]: ${#trimmed[@]} fields: ${trimmed[*]}" >> "$DEBUG_LOG"
+
+        [[ ${#trimmed[@]} -lt 2 ]] && continue
+
+        local appname="${trimmed[0]}"
+        local display_name="${trimmed[1]}"
+
+        [ -z "$appname" ] && continue
+        [[ "$appname" == "APP NAME" ]] && continue
+        [[ "$appname" == "NONE" ]] && continue
+
+        echo "OUT: ${appname}\t${display_name}" >> "$DEBUG_LOG"
+        echo -e "${appname}\t${display_name}"
+
+    done <<< "$output"
+
+    echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
 }
 
 do_version() {
