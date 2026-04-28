@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# 安装前检查
+# 检查系统用户是否存在
+if id "fnclearup" &>/dev/null; then
+    echo "用户 fnclearup 已存在"
+fi
+
+exit 0
