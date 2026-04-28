@@ -6,7 +6,13 @@
 set -euo pipefail
 
 DEBUG_LOG="/tmp/fnclearup_debug.log"
-APP_DIR="$(dirname "$(dirname "$0")")"
+# Use SCRIPT_FILENAME if available, otherwise fall back to $0
+SCRIPT_PATH="${SCRIPT_FILENAME:-$0}"
+# Resolve to absolute path to handle relative $0
+if [[ "$SCRIPT_PATH" != /* ]]; then
+    SCRIPT_PATH="$(pwd)/$SCRIPT_PATH"
+fi
+APP_DIR="$(dirname "$(dirname "$SCRIPT_PATH")")"
 API_SH="$APP_DIR/api.sh"
 WWW_DIR="$APP_DIR/ui/www"
 
@@ -14,6 +20,12 @@ WWW_DIR="$APP_DIR/ui/www"
 echo "=== index.cgi invoked ===" >> "$DEBUG_LOG"
 echo "PATH_INFO=$PATH_INFO" >> "$DEBUG_LOG"
 echo "REQUEST_METHOD=$REQUEST_METHOD" >> "$DEBUG_LOG"
+echo "SCRIPT_FILENAME=$SCRIPT_FILENAME" >> "$DEBUG_LOG"
+echo "SCRIPT_NAME=$SCRIPT_NAME" >> "$DEBUG_LOG"
+echo "\$0=$(printf '%s' "$0" | od -c | head -1)" >> "$DEBUG_LOG"
+echo "APP_DIR=$APP_DIR" >> "$DEBUG_LOG"
+echo "API_SH=$API_SH" >> "$DEBUG_LOG"
+echo "WWW_DIR=$WWW_DIR" >> "$DEBUG_LOG"
 
 # ── Extract path after index.cgi ─────────────────────────────────────────
 URI_NO_QUERY="${REQUEST_URI%%\?*}"
@@ -66,6 +78,9 @@ if [[ -z "$REL_PATH" || "$REL_PATH" == "/" ]]; then
 fi
 
 TARGET_FILE="$WWW_DIR/$REL_PATH"
+echo "TARGET_FILE=$TARGET_FILE" >> "$DEBUG_LOG"
+echo "WWW_DIR=$WWW_DIR" >> "$DEBUG_LOG"
+ls "$WWW_DIR/" >> "$DEBUG_LOG" 2>&1 || echo "WWW_DIR not found" >> "$DEBUG_LOG"
 
 if [[ "$TARGET_FILE" == *..* ]]; then
     echo "Status: 400 Bad Request"
