@@ -591,7 +591,7 @@ async function doScan() {
   document.getElementById("selectInfo").textContent = "";
 
   try {
-    const res = await fetch("/api/scan", {
+    const res = await fetch("/cgi/ThirdParty/App.Native.FnClearup/index.cgi/api/scan", {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({})
@@ -741,7 +741,7 @@ async function doDelete() {
   status.textContent = "⏳ 正在删除...";
 
   try {
-    const res = await fetch("/api/delete", {
+    const res = await fetch("/cgi/ThirdParty/App.Native.FnClearup/index.cgi/api/delete", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({paths: allPaths, delete_users: deleteUsers})
@@ -807,7 +807,7 @@ function showSponsorImgFull(img) {
 
 <!-- 页脚版权信息 -->
 <div class="footer">
-  Copyright © 2022-2026 <a href="https://gitee.com/wyf1015" target="_blank">一零一二</a> · FnOS 孤立应用清理精灵
+  Copyright © 2022-2026 <a href="https://gitee.com/wyf1015" target="_blank">一零一二</a> · FnOS 清理精灵
 </div>
 </body>
 </html>
