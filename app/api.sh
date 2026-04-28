@@ -71,13 +71,14 @@ get_installed_apps() {
     -e 's/\r$//' | awk -F "|" 'BEGIN {line=0}
     {
         line++
-        if (line <= 3) print "AWK[" line "] NF=" NF " $1=[" $1 "] $2=[" $2 "]" >> "/tmp/fnclearup_debug.log"
-        if (NF < 2) next
-        f1 = $1; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-        f2 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
+        if (line <= 3) print "AWK[" line "] NF=" NF " $2=[" $2 "] $3=[" $3 "]" >> "/tmp/fnclearup_debug.log"
+        if (NF < 3) next
+        f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
+        f2 = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
         if (line <= 20) print "AWK[" line "] f1=[" f1 "] f2=[" f2 "]" >> "/tmp/fnclearup_debug.log"
-        if (f1 == "" || f1 == "APP NAME" || f1 == "NONE") next
+        if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
         if (f1 ~ /^[┌┬┐├┤┴┼]/) next
+        if (f1 ~ /^-+$/) next
         printf "%s\t%s\n", f1, f2
     }
     '
