@@ -95,7 +95,6 @@ get_installed_apps() {
 
     echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
 }
-}
 
 do_version() {
     printf '%s\n' 'Status: 200'
