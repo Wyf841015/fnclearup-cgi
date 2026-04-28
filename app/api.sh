@@ -66,8 +66,9 @@ get_installed_apps() {
     echo "Using delimiter bytes: $(printf '%s' "$delim" | od -A n -t x1 | tr -s ' ')" >> "$DEBUG_LOG"
 
     # Use awk for reliable parsing of Unicode-delimited table output
-    # Pipe through sed first to strip  from CRLF line endings
-    echo "$output" | sed 's/\r$//' | gawk -F "$delim" '
+    # Pipe through sed first to strip 
+ from CRLF line endings
+    echo "$output" | sed 's/\r$//' | awk -F "$delim" '
     BEGIN { line_num=0 }
     {
         line_num++
