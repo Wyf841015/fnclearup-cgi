@@ -7,8 +7,8 @@ set -euo pipefail
 
 DEBUG_LOG="/tmp/fnclearup_debug.log"
 APP_DIR="$(dirname "$(dirname "$0")")"
-API_SH="$APP_DIR/app/api.sh"
-WWW_DIR="$APP_DIR/app/www"
+API_SH="$APP_DIR/api.sh"
+WWW_DIR="$APP_DIR/ui/www"
 
 # ── Debug logging ──────────────────────────────────────────────────────────
 echo "=== index.cgi invoked ===" >> "$DEBUG_LOG"
@@ -44,7 +44,8 @@ if [[ "$REL_PATH" == api/* ]]; then
 
     # Parse api.sh's HTTP response
     STATUS_LINE=$(echo "$RESPONSE" | head -n 1)
-    BODY=$(echo "$RESPONSE" | sed '1,/^*$/d')
+    BODY=$(echo "$RESPONSE" | sed '1,/^
+*$/d')
     STATUS_CODE="${STATUS_LINE#Status: }"
     STATUS_CODE="${STATUS_CODE%$'\r'*}"
     CONTENT_TYPE=$(echo "$RESPONSE" | grep -i '^Content-Type:' | sed 's/^[Cc]ontent-[Tt]ype:[[:space:]]*//' | tr -d '\r' | head -n1)
