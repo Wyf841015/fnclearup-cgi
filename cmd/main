@@ -1,29 +1,17 @@
 #!/bin/bash
 
-# FnClearup CGI 主入口脚本
-# 处理应用启动、停止、状态查询
-
-LOG_FILE="/tmp/fnclearup-cgi.log"
-
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
-}
+# FnClearup CGI 生命周期管理
+# 静态页面应用，无需后台进程
 
 case $1 in
 start)
-    log "Starting FnClearup CGI..."
     exit 0
     ;;
 stop)
-    log "Stopping FnClearup CGI..."
     exit 0
     ;;
 status)
-    # 检查 nginx 是否配置了 fnclearup cgi
-    if [ -f "/etc/nginx/conf.d/fnclearup-cgi.conf" ] || [ -f "/etc/nginx/sites-enabled/fnclearup-cgi" ]; then
-        exit 0
-    fi
-    exit 3
+    exit 0
     ;;
 *)
     exit 1

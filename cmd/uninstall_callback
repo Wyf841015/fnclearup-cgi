@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# 卸载后回调 - 删除系统用户
-if id "fnclearup" &>/dev/null; then
-    userdel -r fnclearup 2>/dev/null
-fi
+### This script is called after the user uninstalls the application.
 
 exit 0

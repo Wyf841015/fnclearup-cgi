@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# 安装后回调
-# 可以在这里创建系统用户等
+### This script is called after the user installs the application.
 
 exit 0
