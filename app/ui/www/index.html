@@ -483,21 +483,23 @@ function isSystemDark() {
 
 // 深色时段: 22:00 - 06:00 或系统深色模式
 function isDarkTime() {
-  if (autoThemeEnabled) {
-    // 有系统主题检测时，以系统主题为准
-    return isSystemDark();
-  }
   const h = new Date().getHours();
-  return h >= 22 || h < 6;
+  const isNightTime = h >= 22 || h < 6;
+  if (autoThemeEnabled) {
+    // 夜间时段强制深色，否则跟随系统主题
+    return isNightTime || isSystemDark();
+  }
+  // 手动模式：仅根据时段
+  return isNightTime;
 }
 
 function applyTheme(dark) {
   if (dark) {
     document.documentElement.classList.add('dark');
-    document.getElementById('themeToggle').textContent = '🌙';
+    document.getElementById('themeToggle').textContent = '☀️';
   } else {
     document.documentElement.classList.remove('dark');
-    document.getElementById('themeToggle').textContent = '☀️';
+    document.getElementById('themeToggle').textContent = '🌙';
   }
 }
 
@@ -517,11 +519,11 @@ function scheduleAutoTheme() {
       if (autoThemeEnabled) applyTheme(isDarkTime());
     });
   }
-  // 立即应用一次
+  // 立即应用一次（无论auto是否开启，先设置正确的初始主题）
+  applyTheme(isDarkTime());
   const sw = document.getElementById('autoSwitch');
   if (autoThemeEnabled) {
     sw.classList.add('on');
-    applyTheme(isDarkTime());
   } else {
     sw.classList.remove('on');
   }
