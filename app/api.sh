@@ -64,29 +64,26 @@ get_installed_apps() {
         echo "Detected: ASCII delimiter" >> "$DEBUG_LOG"
     fi
 
-    # awk directly generates JSON array - bypasses bash string concat issues
+    # Parse table-style output: split by │ and trim each field
     local json_output
     json_output=$(printf '%s' "$output" | awk '
-    BEGIN {
-        line=0; first=1
-        printf "["
-    }
+    BEGIN { first=1; printf "[" }
     {
         gsub(/\r/, "", $0)
         if ($0 == "") next
-        line++
+        # Split by │ character (U+2502)
+        n = split($0, parts, /\xE2\x94\x82/)
+        # Trim leading/trailing whitespace from each part
+        for (i = 1; i <= n; i++) {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", parts[i])
+        }
+        # Valid data line: at least 2 fields, appname not empty/not header
+        if (n >= 2 && parts[1] != "" && parts[1] !~ /^(APP|DISPLAY|VERSION|STATUS|├|─)/) {
+            if (first) { first=0 } else { printf "," }
+            printf "\n  {\"appname\":\"%s\",\"display_name\":\"%s\"}", parts[1], parts[2]
+        }
     }
-    line >= 4 && NF >= 4 {
-        f1=$2; f2=$4
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
-        if (f1 == "" || f1 ~ /^(APP|DISPLAY|VERSION|STATUS|├|┬|┼|└|┘|─)/) next
-        if (first) { first=0 } else { printf "," }
-        printf "\n  {\"appname\":\"" f1 "\",\"display_name\":\"" f2 "\"}"
-    }
-    END {
-        printf "\n]\n"
-    }')
+    END { printf "\n]\n" }')
 
     echo "$json_output"
 }
@@ -105,13 +102,20 @@ do_scan() {
 
     echo "=== do_scan ===" >> "$DEBUG_LOG"
 
-    declare -A installed_map
-    while IFS=$'\t' read -r appname disp; do
-        [ -z "$appname" ] && continue
-        installed_map["${appname,,}"]="$disp"
-    done < <(get_installed_apps)
+    # 直接获取已安装应用的 JSON 数组（get_installed_apps 直接输出 JSON）
+    local installed_json
+    installed_json=$(get_installed_apps) || installed_json="[]"
 
-    echo "installed_map size=${#installed_map[@]}" >> "$DEBUG_LOG"
+    # 构建已安装应用名称集合（用于孤儿检测）
+    declare -A installed_names
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        # 从 JSON 行提取 appname: {"appname":"xxx","display_name":"yyy"}
+        appname=$(echo "$line" | sed -n 's/.*"appname":"\([^"]*\)"/\1/p')
+        [ -n "$appname" ] && installed_names["${appname,,}"]=1
+    done < <(echo "$installed_json" | grep -o '{"appname":"[^"]*","display_name":"[^"]*"}')
+
+    echo "installed_names size=${#installed_names[@]}" >> "$DEBUG_LOG"
 
     first_orphan=1
     orphan_json=""
@@ -125,10 +129,10 @@ do_scan() {
                 inst_lc="${inst_name,,}"
 
                 is_installed=0
-                [ -n "${installed_map[$inst_lc]}" ] && is_installed=1
+                [ -n "${installed_names[$inst_lc]}" ] && is_installed=1
                 if [ "$is_installed" -eq 0 ] && [ "${inst_lc%-docker}" != "$inst_lc" ]; then
                     base="${inst_lc%-docker}"
-                    [ -n "${installed_map[$base]}" ] && is_installed=1
+                    [ -n "${installed_names[$base]}" ] && is_installed=1
                 fi
 
                 if [ "$is_installed" -eq 0 ]; then
@@ -153,18 +157,9 @@ do_scan() {
         done
     done
 
-    first=1
-    installed_json=""
-    for key in "${!installed_map[@]}"; do
-        [ $first -eq 0 ] && installed_json="${installed_json},"
-        first=0
-        installed_json="${installed_json}{\"appname\": $(json_str "$key"), \"display_name\": $(json_str "${installed_map[$key]}")}"
-    done
-    installed_json="[${installed_json}]"
-
     [ -z "$orphan_json" ] && orphan_json="{}" || orphan_json="{ ${orphan_json} }"
 
-    echo "scan_result: installed=${#installed_map[@]} orphan=?" >> "$DEBUG_LOG"
+    echo "scan_result: installed_json lines=$(echo "$installed_json" | wc -l) orphan=?" >> "$DEBUG_LOG"
     http_response "200 OK" "application/json" "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
 }
 
