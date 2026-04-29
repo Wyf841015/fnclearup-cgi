@@ -11,7 +11,7 @@
 #   /index.cgi/static/*   → static files from www/
 #
 
-set -euo pipefail
+set -u  # removed -e (exit on error) and -o pipefail to prevent early exit
 
 DEBUG_LOG="/tmp/fnclearup_debug.log"
 
