@@ -77,10 +77,11 @@ get_installed_apps() {
         for (i = 1; i <= n; i++) {
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", parts[i])
         }
-        # Valid data line: at least 2 fields, appname not empty/not header
-        if (n >= 2 && parts[1] != "" && parts[1] !~ /^(APP|DISPLAY|VERSION|STATUS|├|─)/) {
+        # Valid data line: at least 3 fields, parts[2]=appname (parts[1] is always empty, line starts with │)
+        # Skip header lines (parts[2] contains column names)
+        if (n >= 3 && parts[2] != "" && parts[2] !~ /^(APP|DISPLAY|VERSION|STATUS|├|─)/ && parts[2] !~ /[─+]/) {
             if (first) { first=0 } else { printf "," }
-            printf "\n  {\"appname\":\"%s\",\"display_name\":\"%s\"}", parts[1], parts[2]
+            printf "\n  {\"appname\":\"%s\",\"display_name\":\"%s\"}", parts[2], parts[3]
         }
     }
     END { printf "\n]\n" }')
