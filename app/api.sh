@@ -117,10 +117,13 @@ do_scan() {
     done < <(echo "$installed_json" | grep -oE '"appname":"[^"]+","display_name":"[^"]+"')
 
     echo "installed_names size=${#installed_names[@]}" >> "$DEBUG_LOG"
+    for key in "${!installed_names[@]}"; do
+        echo "  installed_names[$key]=1" >> "$DEBUG_LOG"
+    done
 
     first_orphan=1
     orphan_json=""
-    for vol_path in /mnt/vol*; do
+    for vol_path in /vol*; do
         [ -d "$vol_path" ] || continue
         for app_dir in "$vol_path"/@app*; do
             [ -d "$app_dir" ] || continue
@@ -143,6 +146,7 @@ do_scan() {
                     [ -n "${installed_names[$base]}" ] && is_installed=1
                 fi
 
+                echo "check: inst_dir=$inst_dir inst_lc=$inst_lc is_installed=$is_installed" >> "$DEBUG_LOG"
                 if [ "$is_installed" -eq 0 ]; then
                     first_sub=1
                     subdirs_json=""
