@@ -51,7 +51,7 @@ get_installed_apps() {
     echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
 
     local output
-    output=$(appcenter-cli list 2>&1)
+    output=$(/usr/bin/appcenter-cli list 2>&1)
     local cli_status=$?
     echo "cli_status=$cli_status" >> "$DEBUG_LOG"
 
