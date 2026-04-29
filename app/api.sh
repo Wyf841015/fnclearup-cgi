@@ -2,7 +2,7 @@
 # FnClearup CGI API - Pure Bash CGI
 # Version: 0.3.0
 
-VERSION="0.3.0"
+VERSION="0.3.1"
 PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
 DEBUG_LOG="/tmp/fnclearup_debug.log"
