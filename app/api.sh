@@ -259,10 +259,10 @@ do_delete() {
         done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
     fi
 
-    [ -z "$deleted_json" ] && deleted_json="[]"
-    [ -z "$failed_json" ] && failed_json="[]"
-    [ -z "$users_deleted_json" ] && users_deleted_json="[]"
-    [ -z "$users_failed_json" ] && users_failed_json="[]"
+    [ -z "$deleted_json" ] && deleted_json="[]" || deleted_json="[${deleted_json}]"
+    [ -z "$failed_json" ] && failed_json="[]" || failed_json="[${failed_json}]"
+    [ -z "$users_deleted_json" ] && users_deleted_json="[]" || users_deleted_json="[${users_deleted_json}]"
+    [ -z "$users_failed_json" ] && users_failed_json="[]" || users_failed_json="[${users_failed_json}]"
 
     http_response "200 OK" "application/json" "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
 }
