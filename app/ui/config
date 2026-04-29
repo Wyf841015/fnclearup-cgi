@@ -5,7 +5,7 @@
             "icon": "images/icon_{0}.png",
             "type": "iframe",
             "protocol": "http",
-            "url": "/index.cgi/",
+            "url": "/",
             "allUsers": true
         }
     }
