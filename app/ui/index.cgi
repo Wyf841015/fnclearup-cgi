@@ -75,12 +75,10 @@ if [[ "$REL_PATH" == api/* ]]; then
     BODY=$(printf '%s' "$RESPONSE" | awk '
         BEGIN { found_blank=0 }
         {
-            if (found_blank) { body = body $0 "\n" }
-            else {
-                line = $0
-                gsub(/\r/, "", line)
-                if (line == "") { found_blank=1 }
-            }
+            line = $0
+            gsub(/\r/, "", line)
+            if (line == "") { found_blank=1 }
+            else if (found_blank) { body = body $0 "\n" }
         }
         END { printf "%s", body }
     ')
