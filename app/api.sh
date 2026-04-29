@@ -130,9 +130,16 @@ do_scan() {
                 inst_lc="${inst_name,,}"
 
                 is_installed=0
+                # 检查：appname 完全匹配
                 [ -n "${installed_names[$inst_lc]}" ] && is_installed=1
+                # 检查：appname-docker 变体（去除 -docker 后缀）
                 if [ "$is_installed" -eq 0 ] && [ "${inst_lc%-docker}" != "$inst_lc" ]; then
                     base="${inst_lc%-docker}"
+                    [ -n "${installed_names[$base]}" ] && is_installed=1
+                fi
+                # 检查：docker-appname 变体（去除 docker- 前缀）
+                if [ "$is_installed" -eq 0 ] && [ "${inst_lc#docker-}" != "$inst_lc" ]; then
+                    base="${inst_lc#docker-}"
                     [ -n "${installed_names[$base]}" ] && is_installed=1
                 fi
 
@@ -152,13 +159,14 @@ do_scan() {
 
                     [ $first_orphan -eq 0 ] && orphan_json="${orphan_json},"
                     first_orphan=0
-                    orphan_json="${orphan_json}$(json_str "$inst_name"): ${subdirs_json}"
+                    # 输出：appname, vol_path, 完整路径
+                    orphan_json="${orphan_json}{\"app\":$(json_str "$inst_name"),\"vol\":$(json_str "$vol_path"),\"path\":$(json_str "$inst_dir"),\"dirs\":${subdirs_json}}"
                 fi
             done
         done
     done
 
-    [ -z "$orphan_json" ] && orphan_json="{}" || orphan_json="{ ${orphan_json} }"
+    [ -z "$orphan_json" ] && orphan_json="[]" || orphan_json="[${orphan_json}]"
 
     echo "scan_result: installed_json lines=$(echo "$installed_json" | wc -l) orphan=?" >> "$DEBUG_LOG"
     http_response "200 OK" "application/json" "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
