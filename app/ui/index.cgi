@@ -33,6 +33,16 @@ REL_PATH="${REL_PATH#/}"
 
 # ── API proxy ───────────────────────────────────────────────────────────────
 if [[ "$REL_PATH" == api/* ]]; then
+    # Handle CORS preflight (OPTIONS)
+    if [[ "$REQUEST_METHOD" == "OPTIONS" ]]; then
+        printf 'Status: 204 No Content\r\n'
+        printf 'Access-Control-Allow-Origin: *\r\n'
+        printf 'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n'
+        printf 'Access-Control-Allow-Headers: Content-Type\r\n'
+        printf '\r\n'
+        exit 0
+    fi
+
     API_ENDPOINT="/${REL_PATH#api/}"
 
     {
