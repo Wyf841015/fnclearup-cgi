@@ -19,18 +19,13 @@ json_escape() {
     local str="$1" result="" i c
     for ((i=0; i<${#str}; i++)); do
         c="${str:i:1}"
-        # 检查是否是反斜杠（ASCII 92）
-        if [[ "$c" == $'\\' ]]; then
-            result+="\\\\"
-        elif [[ "$c" == '"' ]]; then
-            result+="\\\""
-        elif [[ "$c" == $'\n' ]]; then
-            result+="\\n"
-        elif [[ "$c" == $'\t' ]]; then
-            result+="\\t"
-        else
-            result+="$c"
-        fi
+        case "$c" in
+            \\ ) result+="\\" ;;
+            \") result+="\"" ;;
+            $'\n') result+="\n" ;;
+            $'\t') result+="\t" ;;
+            *) result+="$c" ;;
+        esac
     done
     printf '%s' "$result"
 }
@@ -166,154 +161,88 @@ do_scan() {
 do_delete() {
     echo "=== do_delete entered ===" >> "$DEBUG_LOG"
 
-    # 1. 检查请求方法
-    if [ "$REQUEST_METHOD" != "POST" ]; then
+    [ "$REQUEST_METHOD" != "POST" ] && {
         echo "do_delete: not POST, returning 405" >> "$DEBUG_LOG"
         http_response "405 Method Not Allowed" "text/plain" "POST required"
         exit 0
-    fi
-
-    # 2. 读取请求体
-    body=$(cat)
-    echo "do_delete body len=${#body}" >> "$DEBUG_LOG"
-
-    # 3. 解析参数
-    delete_users=false
-    if echo "$body" | grep -qE '"delete_users"[[:space:]]*:[[:space:]]*true'; then
-        delete_users=true
-    fi
-
-    # 提取第一个数组内容，更稳健的做法是使用 jq，这里假设环境可能没有 jq
-    # 注意：简单的正则提取在复杂 JSON 下不可靠，建议引入 jq
-    paths_str=$(echo "$body" | grep -oE '$[^]]*$' | head -1)
-    
-    # 初始化计数器与JSON片段
-    deleted_json=""
-    failed_json=""
-    users_deleted_json=""
-    users_failed_json=""
-    total=0
-    failures=0
-    
-    first_path=true
-    first_user=true
-
-    # 辅助函数：安全地追加到 JSON 数组字符串
-    append_to_json_list() {
-        local current="$1"
-        local item="$2"
-        local is_first="$3" # "true" or "false"
-        
-        local escaped_item
-        escaped_item=$(json_str "$item") # 假设 json_str 能正确处理转义
-
-        if [ "$is_first" = "true" ]; then
-            echo "${escaped_item}"
-        else
-            echo ",${escaped_item}"
-        fi
     }
 
-    # 4. 处理文件删除
-    if [ -n "$paths_str" ]; then
-        # 提取引号内的内容，保留原始路径用于后续处理
-        while IFS= read -r raw_path; do
-            [ -z "$raw_path" ] && continue
-            
-            # 清理提取出的路径（去除可能的周围空白，但保留内部结构）
-            # 注意：之前的 tr -d '\\"' 会破坏路径，这里改为只去除外围引号
-            # 假设 grep -oE '\"[^\"]*\"' 提取的是带引号的字符串
-            path=$(echo "$raw_path" | sed 's/^"//;s/"$//')
-            
-            # 安全检查：防止路径遍历 (示例：强制要求在 /vol/ 下)
-            case "$path" in
-                /vol/*) ;; # 允许
-                *) 
-                    echo "Security: Invalid path $path" >> "$DEBUG_LOG"
-                    # 视为失败
-                    if [ "$first_path" = "false" ]; then failed_json="${failed_json},"; fi
-                    failed_json="${failed_json}$(json_str "$path")"
-                    first_path=false
-                    failures=$((failures + 1))
-                    continue
-                    ;;
-            esac
+    body=$(cat)
+    echo "do_delete body len=${#body} first300=$body" >> "$DEBUG_LOG"
 
+    delete_users=false
+    echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
+
+    paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
+    echo "do_delete paths_str=$paths_str" >> "$DEBUG_LOG"
+
+    delete_users=false
+    echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
+
+    paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
+    echo "delete_paths_str=$paths_str" >> "$DEBUG_LOG"
+
+    first_path=1 deleted_json="" failed_json="" total=0 failures=0
+
+    if [ -n "$paths_str" ]; then
+        while IFS= read -r path; do
+            [ -z "$path" ] && continue
             echo "delete_path=$path" >> "$DEBUG_LOG"
-            
-            stat=1 # 默认失败
             if [ -e "$path" ]; then
-                if [ -d "$path" ]; then
-                    rm -rf "$path" 2>/dev/null && stat=0
-                elif [ -f "$path" ]; then
-                    rm -f "$path" 2>/dev/null && stat=0
+                [ -d "$path" ] && rm -rf "$path" 2>/dev/null && stat=0 || stat=1
+                [ -f "$path" ] && rm -f "$path" 2>/dev/null && stat=0 || stat=1
+                 echo "stat=$stat" >> "$DEBUG_LOG"
+                if [ $stat -eq 0 ]; then
+                    [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
+                    first_path=0
+                    deleted_json="${deleted_json}$(json_str "$path")"
+                    total=$((total + 1))
+                else
+                    [ $first_path -eq 0 ] && failed_json="${failed_json},"
+                    first_path=0
+                    failed_json="${failed_json}$(json_str "$path")"
+                    failures=$((failures + 1))
                 fi
             else
-                # 文件不存在也视为失败（或者根据业务需求视为成功？）
-                # 通常前端期望删除不存在的资源也算“达成状态”，但这里原代码算失败
-                stat=1
-            fi
-
-            echo "stat=$stat" >> "$DEBUG_LOG"
-            
-            if [ $stat -eq 0 ]; then
-                if [ "$first_path" = "false" ]; then deleted_json="${deleted_json},"; fi
-                deleted_json="${deleted_json}$(json_str "$path")"
-                first_path=false
-                total=$((total + 1))
-            else
-                if [ "$first_path" = "false" ]; then failed_json="${failed_json},"; fi
+                [ $first_path -eq 0 ] && failed_json="${failed_json},"
+                first_path=0
                 failed_json="${failed_json}$(json_str "$path")"
-                first_path=false
                 failures=$((failures + 1))
             fi
-        done < <(echo "$paths_str" | grep -oE '"[^"]*"')
+        done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
     fi
 
-    # 5. 处理用户删除
+    first_user=1 users_deleted_json="" users_failed_json=""
+
     if [ "$delete_users" = true ]; then
-        while IFS= read -r raw_path; do
-            [ -z "$raw_path" ] && continue
-            path=$(echo "$raw_path" | sed 's/^"//;s/"$//')
-            
+        while IFS= read -r path; do
+            [ -z "$path" ] && continue
             username=""
-            # 更稳健的用户名提取，依然依赖特定路径结构
-            if [[ "$path" =~ /vol/[^/]+/@app/([^/]+)/ ]]; then
-                username="${BASH_REMATCH}"
-            fi
-            
+            case "$path" in
+                /vol*/@app*/*) username="${path##*/@app*/}"; username="${username%%/*}" ;;
+            esac
             [ -z "$username" ] && continue
-            
-            # 检查用户是否存在
-            if ! id "$username" &>/dev/null; then
-                continue
-            fi
-
-            echo "deleting user: $username" >> "$DEBUG_LOG"
-            
-            if userdel -r "$username" 2>/dev/null; then
-                if [ "$first_user" = "false" ]; then users_deleted_json="${users_deleted_json},"; fi
+            id "$username" &>/dev/null || continue
+            userdel -r "$username" 2>/dev/null && stat=0 || stat=1
+            if [ $stat -eq 0 ]; then
+                [ $first_user -eq 0 ] && users_deleted_json="${users_deleted_json},"
+                first_user=0
                 users_deleted_json="${users_deleted_json}$(json_str "$username")"
-                first_user=false
             else
-                if [ "$first_user" = "false" ]; then users_failed_json="${users_failed_json},"; fi
+                [ $first_user -eq 0 ] && users_failed_json="${users_failed_json},"
+                first_user=0
                 users_failed_json="${users_failed_json}$(json_str "$username")"
-                first_user=false
             fi
-        done < <(echo "$paths_str" | grep -oE '"[^"]*"')
+        done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
     fi
 
-    # 6. 构建最终 JSON
-    # 如果列表为空，设置为 []，否则包裹在 [] 中
     [ -z "$deleted_json" ] && deleted_json="[]" || deleted_json="[${deleted_json}]"
     [ -z "$failed_json" ] && failed_json="[]" || failed_json="[${failed_json}]"
     [ -z "$users_deleted_json" ] && users_deleted_json="[]" || users_deleted_json="[${users_deleted_json}]"
     [ -z "$users_failed_json" ] && users_failed_json="[]" || users_failed_json="[${users_failed_json}]"
 
-    http_response "200 OK" "application/json" \
-        "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
+    http_response "200 OK" "application/json" "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
 }
-
 
 do_debug() {
     echo "=== do_debug ===" >> "$DEBUG_LOG"
