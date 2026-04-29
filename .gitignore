@@ -1,0 +1,4 @@
+# fnpack build output
+wizard/
+*.fpk
+*.fpk.*
