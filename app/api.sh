@@ -190,16 +190,20 @@ do_delete() {
 
     body=$(read_body)
 
+    echo "delete_body=$body" >> "$DEBUG_LOG"
+
     delete_users=false
     echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
 
     paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
+    echo "delete_paths_str=$paths_str" >> "$DEBUG_LOG"
 
     first_path=1 deleted_json="" failed_json="" total=0 failures=0
 
     if [ -n "$paths_str" ]; then
         while IFS= read -r path; do
             [ -z "$path" ] && continue
+            echo "delete_path=$path" >> "$DEBUG_LOG"
             if [ -e "$path" ]; then
                 [ -d "$path" ] && rm -rf "$path" 2>/dev/null && stat=0 || stat=1
                 [ -f "$path" ] && rm -f "$path" 2>/dev/null && stat=0 || stat=1
