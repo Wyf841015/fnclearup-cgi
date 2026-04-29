@@ -183,14 +183,22 @@ do_scan() {
 }
 
 do_delete() {
+    echo "=== do_delete entered ===" >> "$DEBUG_LOG"
+
     [ "$REQUEST_METHOD" != "POST" ] && {
+        echo "do_delete: not POST, returning 405" >> "$DEBUG_LOG"
         http_response "405 Method Not Allowed" "text/plain" "POST required"
         exit 0
     }
 
-    body=$(read_body)
+    body=$(cat)
+    echo "do_delete body len=${#body} first300=$body" >> "$DEBUG_LOG"
 
-    echo "delete_body=$body" >> "$DEBUG_LOG"
+    delete_users=false
+    echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
+
+    paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
+    echo "do_delete paths_str=$paths_str" >> "$DEBUG_LOG"
 
     delete_users=false
     echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true

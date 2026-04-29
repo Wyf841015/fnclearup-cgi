@@ -49,6 +49,9 @@ if [[ "$REL_PATH" == api/* ]]; then
         : >"$BODY_TMP"
     fi
 
+    echo "index.cgi BODY_TMP=$BODY_TMP body_len=$(wc -c < "$BODY_TMP")" >> "$DEBUG_LOG"
+    echo "index.cgi body_first200=$(head -c 200 "$BODY_TMP")" >> "$DEBUG_LOG"
+
     export PATH_INFO="$API_ENDPOINT"
     export REQUEST_METHOD="${REQUEST_METHOD:-GET}"
     export REQUEST_URI="$REQUEST_URI"
