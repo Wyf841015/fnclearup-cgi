@@ -48,21 +48,11 @@ http_response() {
 read_body() { cat; }
 
 get_installed_apps() {
-    # echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
-
     local output
     output=$(appcenter-cli list 2>&1)
     local cli_status=$?
-    echo "cli_status=$cli_status" >> "$DEBUG_LOG"
 
-    [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no cli output" >> "$DEBUG_LOG"; return 1; }
-
-    # Detect delimiter
-    if printf '%s' "$output" | grep -q $'\xE2\x94\x82'; then
-        echo "Detected: Unicode delimiter" >> "$DEBUG_LOG"
-    else
-        echo "Detected: ASCII delimiter" >> "$DEBUG_LOG"
-    fi
+    [ $cli_status -ne 0 ] || [ -z "$output" ] && { return 1; }
 
     # Parse table-style output: split by │ and trim each field
     local json_output
@@ -101,8 +91,6 @@ do_scan() {
         exit 0
     }
 
-    # echo "=== do_scan ===" >> "$DEBUG_LOG"
-
     # 直接获取已安装应用的 JSON 数组（get_installed_apps 直接输出 JSON）
     local installed_json
     installed_json=$(get_installed_apps) || installed_json="[]"
@@ -110,21 +98,11 @@ do_scan() {
     # 构建已安装应用名称集合（用于孤儿检测）
     declare -A installed_names
     
-    # Debug: log raw installed_json
-    echo "installed_json_preview=$(echo "$installed_json" | head -c 500)" >> "$DEBUG_LOG"
-    echo "installed_json=$(echo "$installed_json" | grep -oE '"appname":"[^"]+"')" >> "$DEBUG_LOG"
-    
     # 从 installed_json 提取每个 appname：grep -oE 取出 "appname":"xxx" 再去掉前缀后缀
     while IFS= read -r name; do
         [ -z "$name" ] && continue
         installed_names["${name,,}"]=1
-        echo "  added installed_names[${name,,}]=1" >> "$DEBUG_LOG"
     done < <(echo "$installed_json" | sed -n 's/.*"appname":"\([^"]*\)".*/\1/p')
-
-    echo "installed_names size=${#installed_names[@]}" >> "$DEBUG_LOG"
-    for key in "${!installed_names[@]}"; do
-        echo "  installed_names[$key]=1" >> "$DEBUG_LOG"
-    done
 
 
  first_orphan=1
@@ -152,7 +130,6 @@ do_scan() {
                     [ -n "${installed_names[$base]}" ] && is_installed=1
                 fi
 
-                echo "check: inst_dir=$inst_dir inst_lc=$inst_lc is_installed=$is_installed" >> "$DEBUG_LOG"
                 if [ "$is_installed" -eq 0 ]; then
                     first_sub=1
                     subdirs_json=""
@@ -178,7 +155,6 @@ do_scan() {
 
     [ -z "$orphan_json" ] && orphan_json="[]" || orphan_json="[${orphan_json}]"
 
-    echo "scan_result: installed_json lines=$(echo "$installed_json" | wc -l) orphan=?" >> "$DEBUG_LOG"
     http_response "200 OK" "application/json" "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
 }
 
