@@ -109,19 +109,27 @@ do_scan() {
 
     # 构建已安装应用名称集合（用于孤儿检测）
     declare -A installed_names
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        # 从 JSON 行提取 appname: {"appname":"xxx","display_name":"yyy"}
-        appname=$(echo "$line" | sed -n 's/.*"appname":"\([^"]*\)"/\1/p')
-        [ -n "$appname" ] && installed_names["${appname,,}"]=1
-    done < <(echo "$installed_json" | grep -oE '"appname":"[^"]+","display_name":"[^"]+"')
+    
+    # Debug: log raw installed_json
+    echo "installed_json_preview=$(echo "$installed_json" | head -c 300)" >> "$DEBUG_LOG"
+    
+    # 从 installed_json 提取每个 appname：grep -oE 取出 "appname":"xxx" 再去掉前缀后缀
+    while IFS= read -r appname; do
+        [ -z "$appname" ] && continue
+        # 去掉前缀 "appname":" 和后缀 "
+        name="${appname#\"appname":"}"
+        name="${name%\"}"
+        [ -n "$name" ] && installed_names["${name,,}"]=1
+        echo "  added installed_names[${name,,}]=1" >> "$DEBUG_LOG"
+    done < <(echo "$installed_json" | grep -oE '"appname":"[^"]+"')
 
     echo "installed_names size=${#installed_names[@]}" >> "$DEBUG_LOG"
     for key in "${!installed_names[@]}"; do
         echo "  installed_names[$key]=1" >> "$DEBUG_LOG"
     done
 
-    first_orphan=1
+
+ first_orphan=1
     orphan_json=""
     for vol_path in /vol*; do
         [ -d "$vol_path" ] || continue
