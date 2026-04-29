@@ -114,7 +114,7 @@ do_scan() {
         # 从 JSON 行提取 appname: {"appname":"xxx","display_name":"yyy"}
         appname=$(echo "$line" | sed -n 's/.*"appname":"\([^"]*\)"/\1/p')
         [ -n "$appname" ] && installed_names["${appname,,}"]=1
-    done < <(echo "$installed_json" | grep -o '{"appname":"[^"]*","display_name":"[^"]*"}')
+    done < <(echo "$installed_json" | grep -oE '"appname":"[^"]+","display_name":"[^"]+"')
 
     echo "installed_names size=${#installed_names[@]}" >> "$DEBUG_LOG"
 
