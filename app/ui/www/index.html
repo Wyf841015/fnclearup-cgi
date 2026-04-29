@@ -609,7 +609,18 @@ async function doScan() {
     }
     const data = await res.json();
     installedApps = data.installed || [];
-    orphanData = data.orphan || {};
+    // 兼容新后端格式：数组 [{app, vol, path, dirs}] -> 对象 {子目录名: [完整路径]}
+    let orphanData;
+    if (Array.isArray(data.orphan)) {
+      orphanData = {};
+      for (const item of data.orphan) {
+        const subName = item.app;
+        if (!orphanData[subName]) orphanData[subName] = [];
+        orphanData[subName].push(item.path);
+      }
+    } else {
+      orphanData = data.orphan || {};
+    }
 
     document.getElementById("installed-count").textContent = installedApps.length;
     document.getElementById("orphan-list").innerHTML = "";
