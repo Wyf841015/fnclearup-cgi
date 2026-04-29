@@ -67,7 +67,7 @@ myapp/
 }
 ```
 
-**type=iframe 时**: URL 填 `/`，由 fnOS App Center 处理路由
+**type=iframe 时**: URL 填完整 CGI 路径，如 `/cgi/ThirdParty/<appname>/index.cgi/`
 **type=url 时**: URL 填完整路径，会在新标签页打开
 
 ## CGI 应用开发
