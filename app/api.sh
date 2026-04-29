@@ -115,14 +115,11 @@ do_scan() {
     echo "installed_json=$(echo "$installed_json" | grep -oE '"appname":"[^"]+"')" >> "$DEBUG_LOG"
     
     # 从 installed_json 提取每个 appname：grep -oE 取出 "appname":"xxx" 再去掉前缀后缀
-    while IFS= read -r appname; do
-        [ -z "$appname" ] && continue
-        # 去掉前缀 "appname":" 和后缀 "
-        name="${appname#\"appname":"}"
-        name="${name%\"}"
-        [ -n "$name" ] && installed_names["${name,,}"]=1
+    while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        installed_names["${name,,}"]=1
         echo "  added installed_names[${name,,}]=1" >> "$DEBUG_LOG"
-    done < <(echo "$installed_json" | grep -oE '"appname":"[^"]+"')
+    done < <(echo "$installed_json" | sed -n 's/.*"appname":"\([^"]*\)".*/\1/p')
 
     echo "installed_names size=${#installed_names[@]}" >> "$DEBUG_LOG"
     for key in "${!installed_names[@]}"; do
