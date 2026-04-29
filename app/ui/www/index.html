@@ -591,13 +591,23 @@ async function doScan() {
   document.getElementById("selectInfo").textContent = "";
 
   try {
-    const url = new URL('api/scan', window.location.href).href;
+    // Use path relative to current script (works if index.cgi serves the app)
+    const apiBase = './'; // relative path - works if index.cgi is at app root
     console.log('Fetching:', url);
     const res = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({})
     });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('API error:', res.status, err);
+      status.textContent = '❌ 请求失败: ' + res.status;
+      status.className = 'error';
+      btn.disabled = false;
+      btn.textContent = '🔍 开始扫描';
+      return;
+    }
     const data = await res.json();
     installedApps = data.installed || [];
     orphanData = data.orphan || {};
@@ -743,7 +753,7 @@ async function doDelete() {
   status.textContent = "⏳ 正在删除...";
 
   try {
-    const deleteUrl = new URL('api/delete', window.location.href).href;
+    const deleteUrl = './api/delete';
     console.log('Fetching delete:', deleteUrl);
     const res = await fetch(deleteUrl, {
       method: "POST",
