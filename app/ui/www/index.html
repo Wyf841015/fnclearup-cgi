@@ -659,8 +659,9 @@ async function doScan() {
         const volStr = vols.join(", ");
         const pathsStr = paths.join("\n");
         const cbId = "cb_" + subName.replace(/[^a-zA-Z0-9]/g, "_");
+        const firstPath = (paths[0] || "").replace(/"/g, "&quot;");
         html += `<tr>
-          <td><input type="checkbox" class="row-cb" id="${cbId}" data-subname="${subName}" onchange="updateSelectInfo()"></td>
+          <td><input type="checkbox" class="row-cb" id="${cbId}" data-subname="${subName}" data-fullpath="${firstPath}" onchange="updateSelectInfo()"></td>
           <td style="font-family:monospace;font-size:13px;white-space:nowrap;">${subName}</td>
           <td style="font-family:monospace;font-size:13px;color:#666;">${volStr}</td>
           <td class="paths-cell" title="${pathsStr.replace(/"/g, '&quot;')}">${pathsStr}</td>
@@ -723,9 +724,12 @@ function confirmDelete() {
 
   const allPaths = [];
   for (const cb of checked) {
+    // 优先用 orphanData（扫描时缓存），fallback 到 data-fullpath（直接在 DOM 上）
     const subName = cb.dataset.subname;
-    if (orphanData[subName]) {
+    if (orphanData[subName] && orphanData[subName].length > 0) {
       allPaths.push(...orphanData[subName]);
+    } else if (cb.dataset.fullpath) {
+      allPaths.push(cb.dataset.fullpath);
     }
   }
 
@@ -747,8 +751,10 @@ async function doDelete() {
   const allPaths = [];
   for (const cb of checked) {
     const subName = cb.dataset.subname;
-    if (orphanData[subName]) {
+    if (orphanData[subName] && orphanData[subName].length > 0) {
       allPaths.push(...orphanData[subName]);
+    } else if (cb.dataset.fullpath) {
+      allPaths.push(cb.dataset.fullpath);
     }
   }
 
@@ -756,6 +762,7 @@ async function doDelete() {
   const checkbox = document.getElementById("deleteUsersCheckbox");
   const deleteUsers = checkbox ? checkbox.checked : false;
   console.log("checkbox element:", checkbox, "checked:", deleteUsers);
+  console.log("allPaths to delete:", allPaths);
 
   closeModal();
   const status = document.getElementById("status");
