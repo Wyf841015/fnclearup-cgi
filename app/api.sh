@@ -48,7 +48,7 @@ http_response() {
 read_body() { cat; }
 
 get_installed_apps() {
-    echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
+    # echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
 
     local output
     output=$(appcenter-cli list 2>&1)
@@ -101,7 +101,7 @@ do_scan() {
         exit 0
     }
 
-    echo "=== do_scan ===" >> "$DEBUG_LOG"
+    # echo "=== do_scan ===" >> "$DEBUG_LOG"
 
     # 直接获取已安装应用的 JSON 数组（get_installed_apps 直接输出 JSON）
     local installed_json
@@ -215,6 +215,7 @@ do_delete() {
             if [ -e "$path" ]; then
                 [ -d "$path" ] && rm -rf "$path" 2>/dev/null && stat=0 || stat=1
                 [ -f "$path" ] && rm -f "$path" 2>/dev/null && stat=0 || stat=1
+                 echo "stat=$stat" >> "$DEBUG_LOG"
                 if [ $stat -eq 0 ]; then
                     [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
                     first_path=0
@@ -242,7 +243,7 @@ do_delete() {
             [ -z "$path" ] && continue
             username=""
             case "$path" in
-                /mnt/vol*/@app*/*) username="${path##*/@app*/}"; username="${username%%/*}" ;;
+                /vol*/@app*/*) username="${path##*/@app*/}"; username="${username%%/*}" ;;
             esac
             [ -z "$username" ] && continue
             id "$username" &>/dev/null || continue
