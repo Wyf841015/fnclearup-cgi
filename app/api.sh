@@ -140,7 +140,7 @@ do_scan() {
 
                     [ $first_orphan -eq 0 ] && orphan_json="${orphan_json},"
                     first_orphan=0
-                    orphan_json="${orphan_json}$(json_str "$inst_name"): ${subdirs_json}"
+                    orphan_json="${orphan_json}\"$(json_escape "$inst_name")\": ${subdirs_json}"
                 fi
             done
         done
