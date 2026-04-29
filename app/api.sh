@@ -54,13 +54,16 @@ get_installed_apps() {
     output=$(/usr/bin/appcenter-cli list 2>&1)
     local cli_status=$?
     echo "cli_status=$cli_status" >> "$DEBUG_LOG"
+    echo "raw_output_bytes=${#output}" >> "$DEBUG_LOG"
+    echo "raw_output_first_500: ${output:0:500}" >> "$DEBUG_LOG"
 
     [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no cli output" >> "$DEBUG_LOG"; return 1; }
 
+    local parsed
     # Detect delimiter: Unicode │ (U+2502) or ASCII | (0x7C)
     if echo "$output" | head -3 | grep -q $'\xE2\x94\x82'; then
         echo "Detected: Unicode delimiter" >> "$DEBUG_LOG"
-        echo "$output" | sed -e 's/│/|/g' -e 's/\r$//' | awk -F "|" '
+        parsed=$(echo "$output" | sed -e 's/│/|/g' -e 's/\r$//' | awk -F "|" '
             {
                 if (NF < 3) next
                 f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
@@ -69,10 +72,10 @@ get_installed_apps() {
                 if (f1 ~ /^[┌┬┐├┤┴┼]/) next
                 if (f1 ~ /^-+$/) next
                 printf "%s\t%s\n", f1, f2
-            }'
+            }')
     else
         echo "Detected: ASCII delimiter" >> "$DEBUG_LOG"
-        echo "$output" | sed -e 's/\r$//' | awk -F "|" '
+        parsed=$(echo "$output" | sed -e 's/\r$//' | awk -F "|" '
             {
                 if (NF < 3) next
                 f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
@@ -80,11 +83,17 @@ get_installed_apps() {
                 if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
                 if (f1 ~ /^-+$/) next
                 printf "%s\t%s\n", f1, f2
-            }'
+            }')
     fi
+
+    echo "parsed_lines=$(echo "$parsed" | wc -l)" >> "$DEBUG_LOG"
+    echo "parsed_first_300: ${parsed:0:300}" >> "$DEBUG_LOG"
+    printf '%s' "$parsed"
 
     echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
 }
+
+
 
 do_version() {
     http_response "200 OK" "application/json" "{\"version\": $(json_str "$VERSION"), \"success\": true}"
