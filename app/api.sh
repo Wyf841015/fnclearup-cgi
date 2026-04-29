@@ -51,7 +51,7 @@ get_installed_apps() {
     echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
 
     local output
-    output=$(/usr/bin/appcenter-cli list 2>&1)
+    output=$(appcenter-cli list 2>&1)
     local cli_status=$?
     echo "cli_status=$cli_status" >> "$DEBUG_LOG"
 
@@ -111,7 +111,8 @@ do_scan() {
     declare -A installed_names
     
     # Debug: log raw installed_json
-    echo "installed_json_preview=$(echo "$installed_json" | head -c 300)" >> "$DEBUG_LOG"
+    echo "installed_json_preview=$(echo "$installed_json" | head -c 500)" >> "$DEBUG_LOG"
+    echo "installed_json=$(echo "$installed_json" | grep -oE '"appname":"[^"]+"')" >> "$DEBUG_LOG"
     
     # 从 installed_json 提取每个 appname：grep -oE 取出 "appname":"xxx" 再去掉前缀后缀
     while IFS= read -r appname; do
