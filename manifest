@@ -1,11 +1,11 @@
 appname               = App.Native.FnClearup
-version               = 0.2.7
+version               = 0.2.8
 display_name          = 清理精灵
 desc                  = 扫描FnOS所有vol目录，找出已安装应用但残留目录文件的孤立应用，一键清理
-arch                  = x86_64
-platform              = all
+arch                  = all
 source                = thirdparty
 maintainer            = 再见一零一二
 distributor           = 再见一零一二
+
 desktop_uidir         = ui
 desktop_applaunchname = App.Native.FnClearup.Application

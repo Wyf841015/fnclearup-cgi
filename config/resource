@@ -1,28 +1,5 @@
 {
-    "data-share":
-    {
-        "shares":
-        [
-            {
-                "name": "App.Native.FnClearup",
-                "permission":
-                {
-                    "rw":
-                    [
-                        "App.Native.FnClearup"
-                    ]
-                }
-            },
-            {
-                "name": "App.Native.FnClearup/data",
-                "permission":
-                {
-                    "rw":
-                    [
-                        "App.Native.FnClearup"
-                    ]
-                }
-            }
-        ]
+    "data-share": {
+        "shares": []
     }
 }

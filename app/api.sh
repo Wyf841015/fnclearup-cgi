@@ -1,30 +1,29 @@
 #!/bin/bash
 # FnClearup CGI API - Pure Bash CGI
-# Version: 0.2.4
+# Version: 0.3.0
 
-VERSION="0.2.7"
+VERSION="0.3.0"
 PATH_INFO="${PATH_INFO:-/}"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"
 DEBUG_LOG="/tmp/fnclearup_debug.log"
 
 # Debug: log all CGI env vars
-echo "=== api.sh invoked ===" >> /tmp/fnclearup_debug.log
-echo "PATH_INFO=$PATH_INFO" >> /tmp/fnclearup_debug.log
-echo "REQUEST_METHOD=$REQUEST_METHOD" >> /tmp/fnclearup_debug.log
-echo "REQUEST_URI=$REQUEST_URI" >> /tmp/fnclearup_debug.log
-echo "SCRIPT_NAME=$SCRIPT_NAME" >> /tmp/fnclearup_debug.log
-echo "SERVER_NAME=$SERVER_NAME" >> /tmp/fnclearup_debug.log
-echo "=== end env ===" >> /tmp/fnclearup_debug.log
+{
+    echo "=== api.sh invoked ==="
+    echo "PATH_INFO=$PATH_INFO"
+    echo "REQUEST_METHOD=$REQUEST_METHOD"
+    echo "REQUEST_URI=${REQUEST_URI:-}"
+} >> "$DEBUG_LOG"
 
 json_escape() {
     local str="$1" result="" i c
     for ((i=0; i<${#str}; i++)); do
         c="${str:i:1}"
         case "$c" in
-            \\\\) result+="\\\\" ;;
-            \") result+="\\\"" ;;
-            $'\n') result+="\\n" ;;
-            $'\t') result+="\\t" ;;
+            \\ ) result+="\\" ;;
+            \") result+="\"" ;;
+            $'\n') result+="\n" ;;
+            $'\t') result+="\t" ;;
             *) result+="$c" ;;
         esac
     done
@@ -32,6 +31,19 @@ json_escape() {
 }
 
 json_str() { printf '%s' "$(json_escape "$1")"; }
+
+# Helper: send HTTP response with proper CRLF
+# Usage: http_response status_code content_type body
+http_response() {
+    local status="$1"
+    local ctype="$2"
+    local body="$3"
+    printf 'Status: %s\r\n' "$status"
+    printf 'Content-Type: %s\r\n' "$ctype"
+    printf 'Access-Control-Allow-Origin: *\r\n'
+    printf '\r\n'
+    printf '%s' "$body"
+}
 
 read_body() { cat; }
 
@@ -46,69 +58,43 @@ get_installed_apps() {
     [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no cli output" >> "$DEBUG_LOG"; return 1; }
 
     # Detect delimiter: Unicode │ (U+2502) or ASCII | (0x7C)
-    local has_unicode=0 has_ascii=0
     if echo "$output" | head -3 | grep -q $'\xE2\x94\x82'; then
-        has_unicode=1
-        echo "Detected: Unicode" >> "$DEBUG_LOG"
-    fi
-    if echo "$output" | head -3 | grep -q $'\x7C'; then
-        has_ascii=1
-        echo "Detected: ASCII" >> "$DEBUG_LOG"
-    fi
-
-    local delim
-    if [ $has_unicode -eq 1 ]; then
-        delim=$'\xE2\x94\x82'   # Unicode │
+        echo "Detected: Unicode delimiter" >> "$DEBUG_LOG"
+        echo "$output" | sed -e 's/│/|/g' -e 's/\r$//' | awk -F "|" '
+            {
+                if (NF < 3) next
+                f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
+                f2 = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
+                if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
+                if (f1 ~ /^[┌┬┐├┤┴┼]/) next
+                if (f1 ~ /^-+$/) next
+                printf "%s\t%s\n", f1, f2
+            }'
     else
-        delim="|"
+        echo "Detected: ASCII delimiter" >> "$DEBUG_LOG"
+        echo "$output" | sed -e 's/\r$//' | awk -F "|" '
+            {
+                if (NF < 3) next
+                f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
+                f2 = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
+                if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
+                if (f1 ~ /^-+$/) next
+                printf "%s\t%s\n", f1, f2
+            }'
     fi
-
-    echo "Using delimiter bytes: $(printf '%s' "$delim" | od -A n -t x1 | tr -s ' ')" >> "$DEBUG_LOG"
-
-    # Replace Unicode │ (E2 94 82) with ASCII |, strip CRLF, then parse
-    echo "$output" | sed \
-    -e 's/│/|/g' \
-    -e 's/\r$//' | awk -F "|" 'BEGIN {line=0}
-    {
-        line++
-        if (line <= 3) print "AWK[" line "] NF=" NF " $2=[" $2 "] $3=[" $3 "]" >> "/tmp/fnclearup_debug.log"
-        if (NF < 3) next
-        f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-        f2 = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
-        if (line <= 20) print "AWK[" line "] f1=[" f1 "] f2=[" f2 "]" >> "/tmp/fnclearup_debug.log"
-        if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
-        if (f1 ~ /^[┌┬┐├┤┴┼]/) next
-        if (f1 ~ /^-+$/) next
-        printf "%s\t%s\n", f1, f2
-    }
-    '
 
     echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
 }
 
 do_version() {
-    printf '%s\n' 'Status: 200'
-    printf "Content-Type: application/json
-"
-    printf "
-"
-    printf '%s\n' "{\"version\": $(json_str "$VERSION"), \"success\": true}"
+    http_response "200 OK" "application/json" "{\"version\": $(json_str "$VERSION"), \"success\": true}"
 }
 
 do_scan() {
-    [ "$REQUEST_METHOD" != "POST" ] && { printf "Status: 405 Method Not Allowed
-"; printf "Content-Type: text/plain
-"; printf "
-"; printf "POST required
-"; exit 0; }
-
-    printf '%s\n' 'Status: 200'
-    printf "Content-Type: application/json
-"
-    printf "Cache-Control: no-cache
-"
-    printf "
-"
+    [ "$REQUEST_METHOD" != "POST" ] && {
+        http_response "405 Method Not Allowed" "text/plain" "POST required"
+        exit 0
+    }
 
     echo "=== do_scan ===" >> "$DEBUG_LOG"
 
@@ -119,7 +105,6 @@ do_scan() {
     done < <(get_installed_apps)
 
     echo "installed_map size=${#installed_map[@]}" >> "$DEBUG_LOG"
-    for k in "${!installed_map[@]}"; do echo "  map[$k]=${installed_map[$k]}" >> "$DEBUG_LOG"; done
 
     first_orphan=1
     orphan_json=""
@@ -173,23 +158,14 @@ do_scan() {
     [ -z "$orphan_json" ] && orphan_json="{}" || orphan_json="{ ${orphan_json} }"
 
     echo "scan_result: installed=${#installed_map[@]} orphan=?" >> "$DEBUG_LOG"
-    printf '%s\n' "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
+    http_response "200 OK" "application/json" "{\"installed\": ${installed_json}, \"orphan\": ${orphan_json}, \"success\": true}"
 }
 
 do_delete() {
-    printf '%s\n' 'Status: 200'
-    [ "$REQUEST_METHOD" != "POST" ] && { printf "Status: 405 Method Not Allowed
-"; printf "Content-Type: text/plain
-"; printf "
-"; printf "POST required
-"; exit 0; }
-
-    printf "Content-Type: application/json
-"
-    printf "Cache-Control: no-cache
-"
-    printf "
-"
+    [ "$REQUEST_METHOD" != "POST" ] && {
+        http_response "405 Method Not Allowed" "text/plain" "POST required"
+        exit 0
+    }
 
     body=$(read_body)
 
@@ -255,15 +231,11 @@ do_delete() {
     [ -z "$users_deleted_json" ] && users_deleted_json="[]"
     [ -z "$users_failed_json" ] && users_failed_json="[]"
 
-    printf '%s\n' "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
+    http_response "200 OK" "application/json" "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
 }
 
 do_ping() {
-  printf 'Status: 200 OK\r\n'
-  printf 'Content-Type: application/json\r\n'
-  printf 'Access-Control-Allow-Origin: *\r\n'
-  printf '\r\n'
-  printf '{"ok":true,"method":"%s","uri":"%s"}' "$REQUEST_METHOD" "$REQUEST_URI"
+    http_response "200 OK" "application/json" "{\"ok\":true,\"method\":\"$REQUEST_METHOD\",\"uri\":\"$REQUEST_URI\"}"
 }
 
 case "$PATH_INFO" in
@@ -272,13 +244,6 @@ case "$PATH_INFO" in
 /delete)  do_delete  ;;
 /ping)    do_ping    ;;
 *)
-    printf "Status: 404 Not Found
-"
-    printf "Content-Type: text/plain
-"
-    printf "
-"
-    printf "API endpoint not found
-"
+    http_response "404 Not Found" "text/plain" "API endpoint not found"
     ;;
 esac
