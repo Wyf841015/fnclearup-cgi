@@ -591,10 +591,9 @@ async function doScan() {
   document.getElementById("selectInfo").textContent = "";
 
   try {
-    // Use path relative to current script (works if index.cgi serves the app)
-    const apiBase = './'; // relative path - works if index.cgi is at app root
-    console.log('Fetching:', url);
-    const res = await fetch(url, {
+    const apiBase = './';
+    console.log('Fetching:', apiBase + 'api/scan');
+    const res = await fetch(apiBase + 'api/scan', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({})

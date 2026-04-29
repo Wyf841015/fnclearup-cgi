@@ -242,10 +242,19 @@ do_delete() {
     printf '%s\n' "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
 }
 
+do_ping() {
+  printf 'Status: 200 OK\r\n'
+  printf 'Content-Type: application/json\r\n'
+  printf 'Access-Control-Allow-Origin: *\r\n'
+  printf '\r\n'
+  printf '{"ok":true,"method":"%s","uri":"%s"}' "$REQUEST_METHOD" "$REQUEST_URI"
+}
+
 case "$PATH_INFO" in
 /version) do_version ;;
 /scan)    do_scan    ;;
 /delete)  do_delete  ;;
+/ping)    do_ping    ;;
 *)
     printf '%s\n' 'Status: 404 Not Found'
     printf '%s\n' 'Content-Type: text/plain'
