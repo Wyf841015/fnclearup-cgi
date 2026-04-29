@@ -51,46 +51,44 @@ get_installed_apps() {
     echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
 
     local output
-    output=$(/usr/bin/appcenter-cli list 2>&1)
+    output=$(appcenter-cli list 2>&1)
     local cli_status=$?
     echo "cli_status=$cli_status" >> "$DEBUG_LOG"
-    echo "raw_output_bytes=${#output}" >> "$DEBUG_LOG"
-    echo "raw_output_first_500: ${output:0:500}" >> "$DEBUG_LOG"
 
     [ $cli_status -ne 0 ] || [ -z "$output" ] && { echo "FAIL: no cli output" >> "$DEBUG_LOG"; return 1; }
 
-    local parsed
-    # Detect delimiter: Unicode │ (U+2502) or ASCII | (0x7C)
-    if echo "$output" | head -3 | grep -q $'\xE2\x94\x82'; then
+    # Detect delimiter
+    if printf '%s' "$output" | grep -q $'\xE2\x94\x82'; then
         echo "Detected: Unicode delimiter" >> "$DEBUG_LOG"
-        parsed=$(echo "$output" | sed -e 's/│/|/g' -e 's/\r$//' | awk -F "|" '
-            {
-                if (NF < 3) next
-                f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-                f2 = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
-                if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
-                if (f1 ~ /^[┌┬┐├┤┴┼]/) next
-                if (f1 ~ /^-+$/) next
-                printf "%s\t%s\n", f1, f2
-            }')
     else
         echo "Detected: ASCII delimiter" >> "$DEBUG_LOG"
-        parsed=$(echo "$output" | sed -e 's/\r$//' | awk -F "|" '
-            {
-                if (NF < 3) next
-                f1 = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
-                f2 = $3; gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
-                if (f1 == "" || f1 == "APP NAME" || f1 == "DISPLAY NAME" || f1 == "NONE") next
-                if (f1 ~ /^-+$/) next
-                printf "%s\t%s\n", f1, f2
-            }')
     fi
 
-    echo "parsed_lines=$(echo "$parsed" | wc -l)" >> "$DEBUG_LOG"
-    echo "parsed_first_300: ${parsed:0:300}" >> "$DEBUG_LOG"
-    printf '%s' "$parsed"
+    # awk directly generates JSON array - bypasses bash string concat issues
+    local json_output
+    json_output=$(printf '%s' "$output" | awk '
+    BEGIN {
+        line=0; first=1
+        printf "["
+    }
+    {
+        gsub(/\r/, "", $0)
+        if ($0 == "") next
+        line++
+    }
+    line >= 4 && NF >= 4 {
+        f1=$2; f2=$4
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f1)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", f2)
+        if (f1 == "" || f1 ~ /^(APP|DISPLAY|VERSION|STATUS|├|┬|┼|└|┘|─)/) next
+        if (first) { first=0 } else { printf "," }
+        printf "\n  {\"appname\":\"" f1 "\",\"display_name\":\"" f2 "\"}"
+    }
+    END {
+        printf "\n]\n"
+    }')
 
-    echo "=== get_installed_apps done ===" >> "$DEBUG_LOG"
+    echo "$json_output"
 }
 
 
@@ -117,7 +115,7 @@ do_scan() {
 
     first_orphan=1
     orphan_json=""
-    for vol_path in /mnt/vol*; do
+    for vol_path in /vol*; do
         [ -d "$vol_path" ] || continue
         for app_dir in "$vol_path"/@app*; do
             [ -d "$app_dir" ] || continue
