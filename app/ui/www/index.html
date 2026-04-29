@@ -591,7 +591,9 @@ async function doScan() {
   document.getElementById("selectInfo").textContent = "";
 
   try {
-    const res = await fetch('api/scan', {
+    const url = new URL('api/scan', window.location.href).href;
+    console.log('Fetching:', url);
+    const res = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({})
@@ -741,7 +743,9 @@ async function doDelete() {
   status.textContent = "⏳ 正在删除...";
 
   try {
-    const res = await fetch('api/delete', {
+    const deleteUrl = new URL('api/delete', window.location.href).href;
+    console.log('Fetching delete:', deleteUrl);
+    const res = await fetch(deleteUrl, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({paths: allPaths, delete_users: deleteUsers})
