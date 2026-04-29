@@ -51,7 +51,7 @@ get_installed_apps() {
     echo "=== get_installed_apps ===" >> "$DEBUG_LOG"
 
     local output
-    output=$(appcenter-cli list 2>&1)
+    output=$(/usr/bin/appcenter-cli list 2>&1)
     local cli_status=$?
     echo "cli_status=$cli_status" >> "$DEBUG_LOG"
 
@@ -120,7 +120,7 @@ do_scan() {
 
     first_orphan=1
     orphan_json=""
-    for vol_path in /vol*; do
+    for vol_path in /mnt/vol*; do
         [ -d "$vol_path" ] || continue
         for app_dir in "$vol_path"/@app*; do
             [ -d "$app_dir" ] || continue
