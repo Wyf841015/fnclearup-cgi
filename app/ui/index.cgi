@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# FnClearup CGI Entry Point v0.3.0
+# FnClearup CGI Entry Point v0.3.1
 # Pure Bash CGI - No Python
 #
 # URL routing:
@@ -58,37 +58,34 @@ if [[ "$REL_PATH" == api/* ]]; then
 
     {
         echo "api.sh response length=${#RESPONSE}"
-        echo "api.sh response first 100 chars: ${RESPONSE:0:100}"
+        echo "api.sh response first 200 chars: ${RESPONSE:0:200}"
     } >> "$DEBUG_LOG"
 
     # Parse CRLF-delimited HTTP response from api.sh
     # Response format:
     #   Status: 200 OK\r\n
     #   Content-Type: application/json\r\n
-    #   Access-Control-Allow-Origin: *\r\n
     #   \r\n
-    #   {"json": "body"}
-    #
-    # 1. Extract status code from first line
-    # 2. Skip to after blank line (CRLF CRLF), remainder is body
+    #   {json_body}
 
-    # Use process substitution to read CRLF-delimited lines
-    # We read line-by-line using sed to handle CRLF properly
-
-    # Get first line (status)
+    # Get status line
     STATUS_CODE=$(printf '%s\r\n' "$RESPONSE" | sed -n '1s/Status: //p' | tr -d '\r\n')
 
-    # Find the blank line (double CRLF) and get everything after it
-    # The blank line separator: \r\n\r\n
-    # After that comes the JSON body
-    body_start=$(printf '%s' "$RESPONSE" | od -A n -t x1 | grep -o '0d 0a 0d 0a' | head -1)
-    if [[ -n "$body_start" ]]; then
-        # Body starts after the \r\n\r\n sequence
-        BODY=$(printf '%s' "$RESPONSE" | sed '1,/^.*\r\n\r\n/s/.*\r\n\r\n//')
-    else
-        # Fallback: try LF-only detection
-        BODY=$(printf '%s' "$RESPONSE" | sed '1,/^\r*\n$/d')
-    fi
+    # Find body start: first \r\n\r\n in the raw response
+    BODY=$(printf '%s' "$RESPONSE" | awk '
+        BEGIN { found_blank=0 }
+        {
+            if (found_blank) { body = body $0 "\n" }
+            else {
+                line = $0
+                gsub(/\r/, "", line)
+                if (line == "") { found_blank=1 }
+            }
+        }
+        END { printf "%s", body }
+    ')
+    # Remove trailing newline
+    BODY=$(printf '%s' "$BODY" | sed 's/\n$//')
 
     CONTENT_TYPE="application/json"
     [[ -z "$STATUS_CODE" ]] && STATUS_CODE="200"
@@ -100,7 +97,7 @@ if [[ "$REL_PATH" == api/* ]]; then
     exit 0
 fi
 
-# ── Static files ───────────────────────────────────────────────────────────
+# ── Static files ─────────────────────────────────────────────────────────────
 if [[ -z "$REL_PATH" || "$REL_PATH" == "/" ]]; then
     REL_PATH="index.html"
 fi
