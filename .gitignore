@@ -2,3 +2,6 @@
 wizard/
 *.fpk
 *.fpk.*
+
+# temp files
+manifest.txt
