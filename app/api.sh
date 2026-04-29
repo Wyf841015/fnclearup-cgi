@@ -88,18 +88,27 @@ get_installed_apps() {
 
 do_version() {
     printf '%s\n' 'Status: 200'
-    printf '%s\n' 'Content-Type: application/json'
-    printf '%s\n' ''
+    printf "Content-Type: application/json
+"
+    printf "
+"
     printf '%s\n' "{\"version\": $(json_str "$VERSION"), \"success\": true}"
 }
 
 do_scan() {
-    [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
+    [ "$REQUEST_METHOD" != "POST" ] && { printf "Status: 405 Method Not Allowed
+"; printf "Content-Type: text/plain
+"; printf "
+"; printf "POST required
+"; exit 0; }
 
     printf '%s\n' 'Status: 200'
-    printf '%s\n' 'Content-Type: application/json'
-    printf '%s\n' 'Cache-Control: no-cache'
-    printf '%s\n' ''
+    printf "Content-Type: application/json
+"
+    printf "Cache-Control: no-cache
+"
+    printf "
+"
 
     echo "=== do_scan ===" >> "$DEBUG_LOG"
 
@@ -169,11 +178,18 @@ do_scan() {
 
 do_delete() {
     printf '%s\n' 'Status: 200'
-    [ "$REQUEST_METHOD" != "POST" ] && { printf '%s\n' 'Status: 405 Method Not Allowed'; printf '%s\n' 'Content-Type: text/plain'; printf '%s\n' ''; printf '%s\n' 'POST required'; exit 0; }
+    [ "$REQUEST_METHOD" != "POST" ] && { printf "Status: 405 Method Not Allowed
+"; printf "Content-Type: text/plain
+"; printf "
+"; printf "POST required
+"; exit 0; }
 
-    printf '%s\n' 'Content-Type: application/json'
-    printf '%s\n' 'Cache-Control: no-cache'
-    printf '%s\n' ''
+    printf "Content-Type: application/json
+"
+    printf "Cache-Control: no-cache
+"
+    printf "
+"
 
     body=$(read_body)
 
@@ -256,9 +272,13 @@ case "$PATH_INFO" in
 /delete)  do_delete  ;;
 /ping)    do_ping    ;;
 *)
-    printf '%s\n' 'Status: 404 Not Found'
-    printf '%s\n' 'Content-Type: text/plain'
-    printf '%s\n' ''
-    printf '%s\n' 'API endpoint not found'
+    printf "Status: 404 Not Found
+"
+    printf "Content-Type: text/plain
+"
+    printf "
+"
+    printf "API endpoint not found
+"
     ;;
 esac
