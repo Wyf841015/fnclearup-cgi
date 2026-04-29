@@ -245,6 +245,16 @@ do_delete() {
     http_response "200 OK" "application/json" "{\"deleted\": ${deleted_json}, \"failed\": ${failed_json}, \"total\": ${total}, \"failures\": ${failures}, \"users_deleted\": ${users_deleted_json}, \"users_failed\": ${users_failed_json}, \"success\": true}"
 }
 
+do_debug() {
+    echo "=== do_debug ===" >> "$DEBUG_LOG"
+    local output
+    output=$(/usr/bin/appcenter-cli list 2>&1)
+    echo "raw_output_lines=$(echo "$output" | wc -l)" >> "$DEBUG_LOG"
+    echo "first_line=$(echo "$output" | head -1 | cat -v)" >> "$DEBUG_LOG"
+    # Return raw output for inspection
+    http_response "200 OK" "text/plain" "$output"
+}
+
 do_ping() {
     http_response "200 OK" "application/json" "{\"ok\":true,\"method\":\"$REQUEST_METHOD\",\"uri\":\"$REQUEST_URI\"}"
 }
@@ -254,6 +264,7 @@ case "$PATH_INFO" in
 /scan)    do_scan    ;;
 /delete)  do_delete  ;;
 /ping)    do_ping    ;;
+/debug)   do_debug   ;;
 *)
     http_response "404 Not Found" "text/plain" "API endpoint not found"
     ;;
