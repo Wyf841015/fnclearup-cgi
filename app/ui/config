@@ -1,7 +1,7 @@
 {
     ".url": {
         "App.Native.FnClearup.Application": {
-            "title": "清理精灵",
+            "title": "清理精灵CGI",
             "icon": "images/icon_{0}.png",
             "type": "iframe",
             "url": "/cgi/ThirdParty/App.Native.FnClearup/index.cgi/",
