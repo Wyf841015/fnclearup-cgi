@@ -272,7 +272,7 @@
     $("confirmPathsCount").textContent = allPaths.length;
     // HTML 转义防止 XSS
     const escPath = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    $("confirmPaths").innerHTML = allPaths.map(p => `<div>\${escPath(p)}</div>`).join("");
+    $("confirmPaths").innerHTML = allPaths.map(p => `<div>${escPath(p)}</div>`).join("");
     $("confirmModal").style.display = "flex";
   }
 
