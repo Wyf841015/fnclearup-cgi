@@ -13,7 +13,7 @@ DEBUG_LOG="/tmp/fnclearup_debug.log"
     echo "PATH_INFO=$PATH_INFO"
     echo "REQUEST_METHOD=$REQUEST_METHOD"
     echo "REQUEST_URI=${REQUEST_URI:-}"
-} > "$DEBUG_LOG"
+} >> "$DEBUG_LOG"
 
 json_escape() {
     local str="$1" result="" i c
@@ -196,12 +196,30 @@ do_delete() {
     if [ -n "$paths_str" ]; then
         echo "do_delete: extracting paths" >> "$DEBUG_LOG"
         while IFS= read -r path; do
+            # 清理路径中的 
+ (Windows 行尾)
+            path="${path//$'
+'/}"
             [ -z "$path" ] && continue
-            echo "do_delete: rm command executing for path=$path" >> "$DEBUG_LOG"
-            # Delete and capture exit status directly
+            echo "do_delete: rm command executing for path=[$path]" >> "$DEBUG_LOG"
+            # 检查路径是否存在
+            if [ -d "$path" ]; then
+                echo "do_delete: path is a directory, exists" >> "$DEBUG_LOG"
+            elif [ -f "$path" ]; then
+                echo "do_delete: path is a regular file" >> "$DEBUG_LOG"
+            elif [ -e "$path" ]; then
+                echo "do_delete: path exists but type unknown" >> "$DEBUG_LOG"
+            else
+                echo "do_delete: path does NOT exist" >> "$DEBUG_LOG"
+            fi
+            # Delete and capture exit status directly (不使用管道)
             rm -rf "$path"
             stat=$?
-            echo "do_delete: rm exit stat=$stat for path=$path" >> "$DEBUG_LOG"
+            echo "do_delete: rm exit stat=$stat for path=[$path]" >> "$DEBUG_LOG"
+            if [ $stat -ne 0 ]; then
+                echo "do_delete: rm failed, trying ls to debug..." >> "$DEBUG_LOG"
+                ls -la "$path" >> "$DEBUG_LOG" 2>&1 || echo "ls failed" >> "$DEBUG_LOG"
+            fi
             if [ $stat -eq 0 ]; then
                 [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
                 first_path=0
