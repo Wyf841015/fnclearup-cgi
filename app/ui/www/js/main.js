@@ -212,7 +212,9 @@
         for (const app of App.installedApps) {
           const appname = typeof app === 'object' ? app.appname : app;
           const displayName = typeof app === 'object' ? app.display_name : app;
-          ihtml += `<tr><td>${displayName}</td><td style="font-family:monospace;font-size:13px;">${appname}</td></tr>`;
+          // HTML 转义防止 XSS
+          const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          ihtml += `<tr><td>${esc(displayName)}</td><td style="font-family:monospace;font-size:13px;">${esc(appname)}</td></tr>`;
         }
         ihtml += "</tbody></table>";
         $("installed-list").innerHTML = ihtml;
@@ -268,7 +270,9 @@
 
     $("confirmCount").textContent = checked.length;
     $("confirmPathsCount").textContent = allPaths.length;
-    $("confirmPaths").innerHTML = allPaths.map(p => `<div>${p}</div>`).join("");
+    // HTML 转义防止 XSS
+    const escPath = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    $("confirmPaths").innerHTML = allPaths.map(p => `<div>\${escPath(p)}</div>`).join("");
     $("confirmModal").style.display = "flex";
   }
 

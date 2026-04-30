@@ -12,7 +12,7 @@
 <div class="container">
   <div class="header">
     <div class="header-left">
-      <h1>🧹 FnOS 卸载应用残余清理精灵</h1>
+      <h1>🧹 FnOS 卸载应用残余</h1>
       <p class="subtitle">扫描所有 vol 目录，找出已卸载应用的残留目录文件和系统用户，一键删除</p>
     </div>
     <div class="header-controls">
@@ -29,21 +29,21 @@
     <div class="kpi-card">
       <div class="kpi-icon blue">📦</div>
       <div class="kpi-body">
-        <div class="kpi-label">已安装应用</div>
+        <div class="kpi-label">安装应用</div>
         <div class="kpi-value" id="installed-count">-</div>
       </div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon orange">📂</div>
       <div class="kpi-body">
-        <div class="kpi-label">孤立目录</div>
+        <div class="kpi-label">残余目录</div>
         <div class="kpi-value" id="orphan-count">-</div>
       </div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon green">💾</div>
       <div class="kpi-body">
-        <div class="kpi-label">受影响的卷</div>
+        <div class="kpi-label">受影响卷</div>
         <div class="kpi-value" id="vol-count">-</div>
       </div>
     </div>
@@ -76,7 +76,7 @@
     <p>即将删除以下 <strong id="confirmCount">0</strong> 个目录（共 <strong id="confirmPathsCount">0</strong> 个子目录）：</p>
     <div class="paths-preview" id="confirmPaths"></div>
     <p style="color:var(--color-danger);font-size:13px;">⚠️ 此操作不可恢复，请谨慎操作！</p>
-    <label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px;cursor:pointer;">
+    <label for="deleteUsersCheckbox" style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px;cursor:pointer;">
       <input type="checkbox" id="deleteUsersCheckbox" style="width:16px;height:16px;">
       <span>同步删除关联系统用户（appname / appname-docker）</span>
     </label>

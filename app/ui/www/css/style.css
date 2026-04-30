@@ -16,6 +16,7 @@
   --color-text: #333;
   --color-text-secondary: #666;
   --color-text-muted: #999;
+  --color-text-hint: #6b7280;  /* 4.8:1 on #fff */
   --color-border: #e5e7eb;
   --color-border-light: #eee;
 
@@ -51,6 +52,7 @@
   --color-text: #e0e0e0;
   --color-text-secondary: #a0a0a0;
   --color-text-muted: #6b7280;
+  --color-text-hint: #9ca3af;  /* 6.7:1 on #1a1a2e */
   --color-border: #2a2a4a;
   --color-border-light: #2a2a4a;
 
@@ -468,9 +470,9 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
 .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .auth-error { color: var(--color-danger); font-size: 13px; margin-top: 8px; min-height: 18px; }
-.auth-hint { color: #9ca3af; font-size: 12px; margin-top: 12px; }
+.auth-hint { color: var(--color-text-hint); font-size: 12px; margin-top: 12px; }
 :root.dark .auth-error { color: #f87171; }
-:root.dark .auth-hint { color: #6b7280; }
+:root.dark .auth-hint { color: var(--color-text-hint); }
 
 /* ========== 页脚 ========== */
 .footer {
