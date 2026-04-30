@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FnOS 卸载应用残余清理精灵</title>
+<meta name="description" content="FnOS 卸载应用残余清理精灵 - 扫描所有 vol 目录，找出已卸载应用的残留目录文件和系统用户，一键删除清理">
+<meta name="keywords" content="FnOS,飞牛NAS,清理,卸载,残余,目录清理">
+<link rel="icon" type="image/png" href="./images/icon_64.png">
 <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -14,11 +16,11 @@
       <p class="subtitle">扫描所有 vol 目录，找出已卸载应用的残留目录文件和系统用户，一键删除</p>
     </div>
     <div class="header-controls">
-      <button class="sponsor-btn" onclick="showSponsorModal()" title="赞助作者">❤️ 赞助</button>
-      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题" aria-label="切换明暗主题">☀️</button>
+      <button type="button" class="sponsor-btn" onclick="showSponsorModal()" title="赞助作者">❤️ 赞助</button>
+      <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题" aria-label="切换明暗主题">☀️</button>
       <div class="auto-toggle">
         <span>🔄 自动</span>
-        <div class="switch on" id="autoSwitch" onclick="toggleAutoTheme()"></div>
+        <div type="button" class="switch on" id="autoSwitch" onclick="toggleAutoTheme()" role="switch" aria-checked="true" tabindex="0"></div>
       </div>
     </div>
   </div>
@@ -50,7 +52,7 @@
   <div class="card" id="installed-section">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <h2 style="margin:0;border:none;padding:0;">📋 已安装应用列表</h2>
-      <button class="btn" onclick="toggleInstalledList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
+      <button type="button" class="btn" onclick="toggleInstalledList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
     </div>
     <div id="installed-list" style="display:none;"></div>
   </div>
@@ -58,8 +60,8 @@
   <div class="card">
     <h2>📂 残余目录（已安装应用不含这些目录）</h2>
     <div class="toolbar">
-      <button class="btn" id="scanBtn" onclick="doScan()">🔍 开始扫描</button>
-      <button class="btn btn-danger" id="deleteBtn" onclick="confirmDelete()" disabled>🗑 删除选中</button>
+      <button type="button" class="btn" id="scanBtn" onclick="doScan()">🔍 开始扫描</button>
+      <button type="button" class="btn btn-danger" id="deleteBtn" onclick="confirmDelete()" disabled>🗑 删除选中</button>
       <span class="select-info" id="selectInfo"></span>
     </div>
     <div id="status"></div>
@@ -73,47 +75,47 @@
     <h3>⚠️ 确认删除</h3>
     <p>即将删除以下 <strong id="confirmCount">0</strong> 个目录（共 <strong id="confirmPathsCount">0</strong> 个子目录）：</p>
     <div class="paths-preview" id="confirmPaths"></div>
-    <p style="color:#dc2626;font-size:13px;">⚠️ 此操作不可恢复，请谨慎操作！</p>
+    <p style="color:var(--color-danger);font-size:13px;">⚠️ 此操作不可恢复，请谨慎操作！</p>
     <label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px;cursor:pointer;">
       <input type="checkbox" id="deleteUsersCheckbox" style="width:16px;height:16px;">
       <span>同步删除关联系统用户（appname / appname-docker）</span>
     </label>
     <div class="btn-row">
-      <button class="btn btn-cancel" onclick="closeModal()">取消</button>
-      <button class="btn btn-danger" onclick="doDelete()">确认删除</button>
+      <button type="button" class="btn btn-cancel" onclick="closeModal()">取消</button>
+      <button type="button" class="btn btn-danger" onclick="doDelete()">确认删除</button>
     </div>
   </div>
 </div>
-
-<script src="./js/main.js"></script>
 
 <!-- 赞助弹窗 -->
 <div id="sponsorModal" class="sponsor-modal-overlay" onclick="if(event.target===this)this.style.display='none'">
   <div class="sponsor-modal-content" onclick="event.stopPropagation()">
     <div class="sponsor-header">
       <h3>❤️ 感谢您的支持</h3>
-      <button class="sponsor-modal-close" onclick="document.getElementById('sponsorModal').style.display='none'">✕</button>
+      <button type="button" class="sponsor-modal-close" onclick="document.getElementById('sponsorModal').style.display='none'" aria-label="关闭">✕</button>
     </div>
     <p>您的赞助是我持续开发的最大动力</p>
     <div class="sponsor-qr-row">
       <div class="sponsor-qr-item">
         <p>💙 支付宝</p>
-        <img src="./images/sponsor_alipay.png" onclick="showSponsorImgFull(this)">
+        <img src="./images/sponsor_alipay.png" alt="支付宝赞助二维码" onclick="showSponsorImgFull(this)">
       </div>
       <div class="sponsor-qr-item">
         <p class="wx">💚 微信</p>
-        <img class="wx" src="./images/sponsor_wechat.png" onclick="showSponsorImgFull(this)">
+        <img class="wx" src="./images/sponsor_wechat.png" alt="微信赞助二维码" onclick="showSponsorImgFull(this)">
       </div>
     </div>
   </div>
 </div>
 <div id="sponsorImgOverlay" class="sponsor-img-full-overlay" onclick="if(event.target===this)this.style.display='none'">
-  <img id="sponsorImgFull" onclick="event.stopPropagation()">
+  <img id="sponsorImgFull" alt="赞助二维码大图" onclick="event.stopPropagation()">
 </div>
 
 <!-- 页脚版权信息 -->
 <div class="footer">
-  Copyright © 2022-2026 <a href="https://gitee.com/wyf1015" target="_blank">一零一二</a> · FnOS 残余清理精灵
+  Copyright © 2022-2026 <a href="https://gitee.com/wyf1015" target="_blank" rel="noopener">一零一二</a> · FnOS 残余清理精灵
 </div>
+
+<script src="./js/main.js" defer></script>
 </body>
 </html>
