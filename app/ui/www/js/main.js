@@ -11,6 +11,7 @@
     orphanData: {},  // {子目录名: [完整路径列表]}
     autoThemeTimer: null,
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
+    mountsLoaded: false  // 网盘挂载数据是否已加载
     manualOverride: false
   };
 
@@ -357,6 +358,59 @@
         panel.classList.remove('active');
       }
     });
+    // 切换到网盘挂载 Tab 时加载数据
+    if (tabName === 'disk' && !App.mountsLoaded) {
+      loadMounts();
+      App.mountsLoaded = true;
+    }
+  }
+
+
+  // ========== 网盘挂载 ==========
+  async function loadMounts() {
+    const status = $('mounts-status');
+    const list = $('mounts-list');
+    status.className = 'loading';
+    status.textContent = '⏳ 正在加载...';
+    list.innerHTML = '';
+
+    try {
+      const data = await API.post('api/mounts', {});
+      const mounts = data.mounts || [];
+
+      status.className = 'success';
+      status.textContent = `✅ 共 ${mounts.length} 个网盘挂载`;
+
+      if (mounts.length === 0) {
+        list.innerHTML = '<div class=\'empty\'>暂无可用的网盘挂载</div>';
+        return;
+      }
+
+      let html = `<div class="table-wrapper"><table class="orphan-table"><thead><tr><th>网盘类型</th><th>挂载点</th><th>地址</th><th>路径</th><th>备注</th></tr></thead><tbody>`;
+      for (const m of mounts) {
+        const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const proto = esc(m.proto);
+        const address = esc(m.address);
+        const port = esc(m.port);
+        const path = esc(m.path);
+        const url = `${proto}://${address}:${port}${path}`;
+        const cstStr = esc(m.cloudStorageTypeStr);
+        const mountpoint = esc(m.mountPoint);
+        const comment = esc(m.comment);
+        html += `<tr>
+          <td><span class="badge badge-blue">${cstStr}</span></td>
+          <td style="font-family:monospace;font-size:13px;">${mountpoint}</td>
+          <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary);" title="${url}">${address}:${port}</td>
+          <td style="font-family:monospace;font-size:13px;">${path}</td>
+          <td style="font-size:13px;color:var(--color-text-secondary);">${comment}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+      list.innerHTML = html;
+    } catch (e) {
+      status.className = 'error';
+      status.textContent = '❌ 加载失败: ' + e.message;
+    }
   }
 
   // ========== 导出全局函数 ==========
@@ -372,5 +426,6 @@
   window.showSponsorModal = showSponsorModal;
   window.showSponsorImgFull = showSponsorImgFull;
   window.switchTab = switchTab;
+  window.loadMounts = loadMounts;
 
 })();

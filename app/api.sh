@@ -268,11 +268,86 @@ do_ping() {
     http_response "200 OK" "application/json" "{\"ok\":true,\"method\":\"$REQUEST_METHOD\",\"uri\":\"$REQUEST_URI\"}"
 }
 
+
+
+do_mounts() {
+    local json_file="/etc/mountmgr/mount_info.json"
+    [ ! -f "$json_file" ] && {
+        http_response "200 OK" "application/json" "{\"mounts\": [], \"success\": true, \"message\": \"mount_info.json not found\"}"
+        exit 0
+    }
+
+    # Use jq if available, otherwise parse manually
+    if command -v jq &>/dev/null; then
+        local mounts_json
+        mounts_json=$(jq -r '
+            to_entries[] |
+            .value | to_entries[] | .value |
+            {
+                uid: .key,
+                address: .value.address // "",
+                cloudStorageType: .value.cloudStorageType // 0,
+                cloudStorageTypeStr: .value.cloudStorageTypeStr // "",
+                comment: .value.comment // "",
+                mountPoint: .value.mountPoint // "",
+                path: .value.path // "",
+                port: .value.port // 0,
+                proto: .value.proto // "",
+                username: .value.username // "",
+                time: .value.time // 0
+            } |
+            [.uid, .address, .cloudStorageType, .cloudStorageTypeStr, .comment, .mountPoint, .path, .port, .proto, .username, .time] |
+            @csv
+        ' "$json_file" 2>/dev/null | while IFS= read -r line; do
+            IFS=',' read -r uid address cst cst_str comment mountpoint path port proto username time <<< "$line"
+            # Remove surrounding quotes from each field
+            uid=$(echo "$uid" | tr -d '"')
+            address=$(echo "$address" | tr -d '"')
+            cst=$(echo "$cst" | tr -d '"')
+            cst_str=$(echo "$cst_str" | tr -d '"')
+            comment=$(echo "$comment" | tr -d '"')
+            mountpoint=$(echo "$mountpoint" | tr -d '"')
+            path=$(echo "$path" | tr -d '"')
+            port=$(echo "$port" | tr -d '"')
+            proto=$(echo "$proto" | tr -d '"')
+            username=$(echo "$username" | tr -d '"')
+            time=$(echo "$time" | tr -d '"')
+            [ -z "$mountpoint" ] && continue
+            printf '{"uid":%s,"address":%s,"cloudStorageType":%s,"cloudStorageTypeStr":%s,"comment":%s,"mountPoint":%s,"path":%s,"port":%s,"proto":%s,"username":%s,"time":%s}\n'                 "$(json_str "$uid")"                 "$(json_str "$address")"                 "$(json_str "$cst")"                 "$(json_str "$cst_str")"                 "$(json_str "$comment")"                 "$(json_str "$mountpoint")"                 "$(json_str "$path")"                 "$(json_str "$port")"                 "$(json_str "$proto")"                 "$(json_str "$username")"                 "$(json_str "$time")"
+        done | awk 'BEGIN{printf "["} {if(NR>1)printf ","; printf} END{printf "]"}')
+        [ -z "$mounts_json" ] && mounts_json="[]"
+        http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
+    else
+        # Fallback: basic parsing without jq
+        local mounts_json="["
+        local first=1
+        while IFS= read -r line; do
+            mountpoint=$(echo "$line" | grep -oE '"mountPoint"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            [ -z "$mountpoint" ] && continue
+            cst_str=$(echo "$line" | grep -oE '"cloudStorageTypeStr"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            comment=$(echo "$line" | grep -oE '"comment"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            address=$(echo "$line" | grep -oE '"address"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            path=$(echo "$line" | grep -oE '"path"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            port=$(echo "$line" | grep -oE '"port"[[:space:]]*:[[:space:]]*[0-9]+' | grep -oE '[0-9]+')
+            proto=$(echo "$line" | grep -oE '"proto"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            username=$(echo "$line" | grep -oE '"username"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
+            [ -z "$mountpoint" ] && continue
+            [ $first -eq 0 ] && mounts_json="${mounts_json},"
+            first=0
+            mounts_json="${mounts_json}{\"mountPoint\":$(json_str "$mountpoint"),\"cloudStorageTypeStr\":$(json_str "$cst_str"),\"comment\":$(json_str "$comment"),\"address\":$(json_str "$address"),\"path\":$(json_str "$path"),\"port\":$(json_str "$port"),\"proto\":$(json_str "$proto"),\"username\":$(json_str "$username")}"
+        done < <(cat "$json_file")
+        mounts_json="${mounts_json}]"
+        [ "$mounts_json" = "[]" ] || mounts_json="${mounts_json}"
+        http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
+    fi
+}
+
 case "$PATH_INFO" in
 /version) do_version ;;
 /scan)    do_scan    ;;
 /delete)  do_delete  ;;
 /ping)    do_ping    ;;
+/mounts)   do_mounts  ;;
 /debug)   do_debug   ;;
 *)
     http_response "404 Not Found" "text/plain" "API endpoint not found"
