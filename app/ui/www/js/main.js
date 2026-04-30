@@ -69,6 +69,19 @@
     }
   }
 
+  function toggleDockerInuseList(btn) {
+    const list = $("docker-inuse-list");
+    const isHidden = list.style.display === "none";
+    if (isHidden) {
+      list.style.display = "block";
+      btn.textContent = "▼ 收起";
+    } else {
+      list.style.display = "none";
+      btn.textContent = "▶ 展开";
+    }
+  }
+
+
   async function doScan() {
     const btn = $("scanBtn");
     const status = $("status");
