@@ -189,10 +189,11 @@ do_delete() {
         echo "do_delete: extracting paths from: $paths_str" >> "$DEBUG_LOG"
         while IFS= read -r path; do
             [ -z "$path" ] && continue
-            echo "do_delete: extracted path=$path" >> "$DEBUG_LOG"
-            # Try to delete - stat=0 means success, stat=1 means failure
-            rm -rf "$path" 2>&1 | tee -a "$DEBUG_LOG"
+            echo "do_delete: rm command executing for path=$path" >> "$DEBUG_LOG"
+            # Delete and capture exit status directly
+            rm -rf "$path"
             stat=$?
+            echo "do_delete: rm exit stat=$stat for path=$path" >> "$DEBUG_LOG"
             echo "do_delete: rm stat=$stat for path=$path" >> "$DEBUG_LOG"
             if [ $stat -eq 0 ]; then
                 [ $first_path -eq 0 ] && deleted_json="${deleted_json},"

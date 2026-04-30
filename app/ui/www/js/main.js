@@ -484,12 +484,14 @@
   }
 
   async function doDeleteVol02(paths) {
+    console.log('[doDeleteVol02] paths to delete:', paths);
     const status = $('vol02-status');
     status.className = 'loading';
     status.textContent = '⏳ 正在删除...';
 
     try {
       const result = await API.post('api/delete', { paths: paths, delete_users: false });
+      console.log('[doDeleteVol02] result:', result);
       const total = result.total || 0;
       const failures = result.failures || 0;
       let msg = `📁 已删除: ${total} 个`;
