@@ -359,9 +359,10 @@
         panel.classList.remove('active');
       }
     });
-    // 切换到网盘挂载 Tab 时加载网盘挂载数据
+    // 切换到网盘挂载 Tab 时自动加载数据
     if (tabName === 'disk') {
       if (!App.mountsLoaded) { loadMounts(); App.mountsLoaded = true; }
+      if (!App.vol02Scanned) { scanVol02(); }
     }
   }
 
@@ -496,10 +497,12 @@
       status.className = failures > 0 ? 'warning' : 'success';
       status.textContent = msg;
       alert(msg);
-      // Reload vol02 list
+      // Auto-rescan both mounts and vol02
+      App.mountsLoaded = false;
       App.vol02Scanned = false;
-      document.getElementById('vol02-list').innerHTML = '';
-      document.getElementById('vol02-status').textContent = '请点击"开始扫描"';
+      loadMounts();
+      App.mountsLoaded = true;
+      scanVol02();
     } catch (e) {
       status.className = 'error';
       status.textContent = '❌ 删除失败: ' + e.message;
