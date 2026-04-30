@@ -370,27 +370,36 @@
 
   // ========== /vol02 未挂载目录 ==========
   async function loadVol02() {
+    console.log('[loadVol02] called');
     const status = $('vol02-status');
     const list = $('vol02-list');
+    console.log('[loadVol02] status element:', status);
+    console.log('[loadVol02] list element:', list);
     status.className = 'loading';
     status.textContent = '⏳ 正在加载...';
     list.innerHTML = '';
 
     try {
       const data = await API.post('api/vol02', {});
+      console.log('[loadVol02] received data:', JSON.stringify(data));
       const vol02_dirs = data.vol02_dirs || [];
       const mounted_points = data.mounted_points || [];
+      console.log('[loadVol02] vol02_dirs:', vol02_dirs);
+      console.log('[loadVol02] mounted_points:', mounted_points);
 
       // Build a set of mounted point directory names (last path component)
       const mountedSet = new Set();
       for (const mp of mounted_points) {
         // mp like /mnt/cloud/baidu or /mnt/media
         const name = mp.split('/').pop();
+        console.log('[loadVol02] mp:', mp, '-> name:', name);
         if (name) mountedSet.add(name);
       }
+      console.log('[loadVol02] mountedSet:', [...mountedSet]);
 
       // Filter vol02 dirs that are NOT in mountedSet
       const unmounted = vol02_dirs.filter(d => !mountedSet.has(d));
+      console.log('[loadVol02] unmounted:', unmounted);
 
       status.className = 'success';
       status.textContent = `✅ /vol02 共 ${vol02_dirs.length} 个子目录，其中 ${unmounted.length} 个未在网盘挂载中使用`;
@@ -412,8 +421,11 @@
         </tr>`;
       }
       html += '</tbody></table></div>';
+      console.log('[loadVol02] setting innerHTML, length:', html.length);
       list.innerHTML = html;
+      console.log('[loadVol02] innerHTML set, actual content:', list.innerHTML.substring(0, 200));
     } catch (e) {
+      console.error('[loadVol02] error:', e);
       status.className = 'error';
       status.textContent = '❌ 加载失败: ' + e.message;
     }

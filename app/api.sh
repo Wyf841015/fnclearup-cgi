@@ -338,9 +338,12 @@ do_vol02() {
         for dir in "$vol02_base"/*; do
             [ -d "$dir" ] || continue
             dir_name="${dir##*/}"
+            echo "do_vol02: found vol02 subdir=$dir_name" >> "$DEBUG_LOG"
             [ $first -eq 1 ] && first=0 || vol02_dirs="${vol02_dirs},"
             vol02_dirs="${vol02_dirs}$(json_str "$dir_name")"
         done
+    else
+        echo "do_vol02: $vol02_base directory does not exist" >> "$DEBUG_LOG"
     fi
     [ -z "$vol02_dirs" ] && vol02_dirs="[]" || vol02_dirs="[${vol02_dirs}]"
 
@@ -362,12 +365,32 @@ do_vol02() {
         ]
 JQFEOF2
         mounted_points=$(jq -c -f "$jq_filter" "$json_file" 2>>"$DEBUG_LOG")
+        local jq_ret=$?
+        echo "do_vol02: jq return=$jq_ret, mounted_points=$mounted_points" >> "$DEBUG_LOG"
         rm -f "$jq_filter"
+    else
+        echo "do_vol02: $json_file does not exist" >> "$DEBUG_LOG"
     fi
 
-    echo "do_vol02: mounted_points=$mounted_points" >> "$DEBUG_LOG"
-
     [ -z "$mounted_points" ] && mounted_points="[]"
+
+    # Compute unmounted: vol02_dirs - mounted_set (extract last path component from mountPoint)
+    local unmounted_json=""
+    first=1
+    # Parse vol02_dirs JSON array
+    echo "$vol02_dirs" | grep -oE '"[^"]*"' | tr -d '"' | while IFS= read -r dir; do
+        echo "do_vol02: checking vol02_dir=$dir" >> "$DEBUG_LOG"
+        # Check if this dir name appears in any mounted_points
+        local found=0
+        for mp in $(echo "$mounted_points" | grep -oE '"[^"]*"' | tr -d '"'); do
+            local mp_name="${mp##*/}"
+            echo "do_vol02: compare dir=$dir with mp=$mp mp_name=$mp_name" >> "$DEBUG_LOG"
+            [ "$dir" = "$mp_name" ] && found=1 && break
+        done
+        [ $found -eq 0 ] && echo "do_vol02: UNMOUNTED dir=$dir" >> "$DEBUG_LOG"
+    done
+
+    echo "do_vol02: final response vol02_dirs=$vol02_dirs mounted_points=$mounted_points" >> "$DEBUG_LOG"
 
     http_response "200 OK" "application/json" "{\"vol02_dirs\": ${vol02_dirs}, \"mounted_points\": ${mounted_points}, \"success\": true}"
 }
@@ -379,6 +402,7 @@ case "$PATH_INFO" in
 /delete)  do_delete  ;;
 /ping)    do_ping    ;;
 /mounts)  do_mounts  ;;
+/vol02)   do_vol02   ;;
 *)
     http_response "404 Not Found" "text/plain" "API endpoint not found"
     ;;
