@@ -445,7 +445,7 @@ do_volumes() {
     # to preserve container identity
     local vol_lookup_file
     vol_lookup_file=$(mktemp)
-    docker inspect $(docker ps -aq) --format '{{.Name}}|{{json .Mounts}}' 2>/dev/null | while IFS='|' read -r cname mounts_json; do
+    docker inspect $(docker ps -aq) --format '{{.Name}}|{{json .Mounts}}' 2>/dev/null || true | while IFS='|' read -r cname mounts_json; do
         [ -z "$cname" ] || [ -z "$mounts_json" ] && continue
         echo "$mounts_json" | jq -r '.[] | select(.Type == "volume") | "\(cname)|\(.Name)"' 2>/dev/null
     done > "$vol_lookup_file"
