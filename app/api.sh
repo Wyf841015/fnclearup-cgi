@@ -292,25 +292,30 @@ do_mounts() {
     # JSON structure: { uid: { mountId: { mountData } } }
     # We want all objects that have a mountPoint field
     local mounts_json
-    mounts_json=$(jq -c '
-        [
-            to_entries[] |
-            .value |
-            to_entries[] |
-            .value |
-            select(.mountPoint != null and .mountPoint != "") |
-            {
-                address: .address // "",
-                cloudStorageTypeStr: .cloudStorageTypeStr // "",
-                comment: .comment // "",
-                mountPoint: .mountPoint // "",
-                path: .path // "",
-                port: (.port // 0) | tostring,
-                proto: .proto // "",
-                username: .username // ""
-            }
-        ]
-    ' "$json_file" 2>>"$DEBUG_LOG")
+    # Use jq to parse - write filter to temp file to avoid shell quoting issues
+    local jq_filter
+    jq_filter=$(mktemp)
+    cat > "$jq_filter" << 'JQFEOF'
+    [
+        to_entries[] |
+        .value |
+        to_entries[] |
+        .value |
+        select(.mountPoint != null and .mountPoint != "") |
+        {
+            address: (.address // ""),
+            cloudStorageTypeStr: (.cloudStorageTypeStr // ""),
+            comment: (.comment // ""),
+            mountPoint: (.mountPoint // ""),
+            path: (.path // ""),
+            port: ((.port // 0) | tostring),
+            proto: (.proto // ""),
+            username: (.username // "")
+        }
+    ]
+JQFEOF
+    mounts_json=$(jq -c -f "$jq_filter" "$json_file" 2>>"$DEBUG_LOG")
+    rm -f "$jq_filter"
 
     local jq_status=$?
     echo "do_mounts: jq return status=$jq_status, mounts_json=$mounts_json" >> "$DEBUG_LOG"
