@@ -1,0 +1,32 @@
+{
+  "1000": {
+    "1000-1-7e1fb51e": {
+      "address": "127.0.0.1",
+      "cloudStorageType": 1,
+      "cloudStorageTypeStr": "百度网盘",
+      "comment": "wangyufeng1",
+      "mountPoint": "/vol02/1000-1-7e1fb51e",
+      "password": "ENC:hbWctmYkFkRYThC8PHwrFFIwjVmwFeSbJPG41YsacmHe9j2clLXIt+2REwY=",
+      "path": "/cloud-storage/v1/dav",
+      "port": 15244,
+      "proto": "http",
+      "time": 1777551071,
+      "type": 1,
+      "username": "1000_s44rxZlN0OTM499J"
+    },
+    "1000-1-c96f264a": {
+      "address": "127.0.0.1",
+      "cloudStorageType": 4,
+      "cloudStorageTypeStr": "夸克网盘",
+      "comment": "一零一二",
+      "mountPoint": "/vol02/1000-1-c96f264a",
+      "password": "ENC:ifUwKrMb0vrK7ZFjEUN6WC4jXpppHxQUVNxzR94iLQnBV/xj7eK6sMFo4C0=",
+      "path": "/cloud-storage/v1/dav",
+      "port": 15244,
+      "proto": "http",
+      "time": 1775222568,
+      "type": 1,
+      "username": "1000_Byqev0ogAr1fJDdn"
+    }
+  }
+}

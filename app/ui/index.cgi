@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# FnClearup CGI Entry Point v0.3.1
+# FnClearup CGI Entry Point v0.2.0
 # Pure Bash CGI - No Python
 #
 # URL routing:

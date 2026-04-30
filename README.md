@@ -84,6 +84,7 @@ App.Native.FnClearup.fpk
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| [v0.2.0](https://github.com/Wyf841015/fnclearup-cgi/compare/v0.1.5...v0.2.0) | 2026-04-30 | 修复删除目录失败: 使用jq解析paths数组、chattr -i移除不可变属性、追加日志写入 |
 | [v0.1.5](https://github.com/Wyf841015/fnclearup-cgi/compare/v0.1.4...v0.1.5) | 2026-04-30 | 前端审计修复: XSS防护、label for、WCAG AA对比度优化 |
 | [v0.1.4](https://github.com/Wyf841015/fnclearup-cgi/compare/v0.1.3...v0.1.4) | 2026-04-30 | CSS变量化重构、JS IIFE命名空间封装、SEO增强 |
 | [v0.1.3](https://github.com/Wyf841015/fnclearup-cgi/compare/v0.1.2...v0.1.3) | 2026-04-30 | 拆分js和css到外部文件 |
