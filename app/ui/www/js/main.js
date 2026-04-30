@@ -12,7 +12,7 @@
     autoThemeTimer: null,
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
     mountsLoaded: false,  // 网盘挂载数据是否已加载
-    vol02Loaded: false,    // vol02 目录数据是否已加载
+    vol02Scanned: false,   // vol02 是否已扫描
     manualOverride: false
   };
 
@@ -359,16 +359,20 @@
         panel.classList.remove('active');
       }
     });
-    // 切换到网盘挂载 Tab 时加载数据
+    // 切换到网盘挂载 Tab 时加载网盘挂载数据
     if (tabName === 'disk') {
       if (!App.mountsLoaded) { loadMounts(); App.mountsLoaded = true; }
-      if (!App.vol02Loaded) { loadVol02(); App.vol02Loaded = true; }
     }
   }
 
 
 
   // ========== /vol02 未挂载目录 ==========
+  async function scanVol02() {
+    App.vol02Scanned = true;
+    await loadVol02();
+  }
+
   async function loadVol02() {
     console.log('[loadVol02] called');
     const status = $('vol02-status');
@@ -493,9 +497,9 @@
       status.textContent = msg;
       alert(msg);
       // Reload vol02 list
-      App.vol02Loaded = false;
-      loadVol02();
-      App.vol02Loaded = true;
+      App.vol02Scanned = false;
+      document.getElementById('vol02-list').innerHTML = '';
+      document.getElementById('vol02-status').textContent = '请点击"开始扫描"';
     } catch (e) {
       status.className = 'error';
       status.textContent = '❌ 删除失败: ' + e.message;
@@ -564,6 +568,7 @@
   window.switchTab = switchTab;
   window.loadMounts = loadMounts;
   window.loadVol02 = loadVol02;
+  window.scanVol02 = scanVol02;
   window.confirmDeleteVol02 = confirmDeleteVol02;
 
 })();
