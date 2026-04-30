@@ -180,13 +180,21 @@ do_delete() {
     fi
     echo "do_delete: delete_users bool=$delete_users" >> "$DEBUG_LOG"
 
-    paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
+    # 使用 jq 直接解析 paths 数组（更可靠）
+    echo "do_delete: checking if jq is available" >> "$DEBUG_LOG"
+    if ! command -v jq &>/dev/null; then
+        echo "do_delete: jq not found, falling back to grep" >> "$DEBUG_LOG"
+        paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
+    else
+        echo "do_delete: using jq to extract paths" >> "$DEBUG_LOG"
+        paths_str=$(echo "$body" | jq -r '.paths[]' 2>/dev/null)
+    fi
     echo "do_delete: paths_str=$paths_str" >> "$DEBUG_LOG"
 
     first_path=1 deleted_json="" failed_json="" total=0 failures=0
 
     if [ -n "$paths_str" ]; then
-        echo "do_delete: extracting paths from: $paths_str" >> "$DEBUG_LOG"
+        echo "do_delete: extracting paths" >> "$DEBUG_LOG"
         while IFS= read -r path; do
             [ -z "$path" ] && continue
             echo "do_delete: rm command executing for path=$path" >> "$DEBUG_LOG"
@@ -194,7 +202,6 @@ do_delete() {
             rm -rf "$path"
             stat=$?
             echo "do_delete: rm exit stat=$stat for path=$path" >> "$DEBUG_LOG"
-            echo "do_delete: rm stat=$stat for path=$path" >> "$DEBUG_LOG"
             if [ $stat -eq 0 ]; then
                 [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
                 first_path=0
@@ -206,7 +213,7 @@ do_delete() {
                 failed_json="${failed_json}$(json_str "$path")"
                 failures=$((failures + 1))
             fi
-        done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
+        done <<< "$paths_str"
     else
         echo "do_delete: paths_str is empty!" >> "$DEBUG_LOG"
     fi
@@ -215,6 +222,8 @@ do_delete() {
    
     echo "delete_users=$delete_users" >> "$DEBUG_LOG"
     if [ "$delete_users" = true ]; then
+        # 重新从 body 提取 paths（因为上面的 while 已经消费了 paths_str）
+        user_paths=$(echo "$body" | jq -r '.paths[]' 2>/dev/null)
         while IFS= read -r path; do
            [ -z "$path" ] && continue
             username=""
@@ -234,7 +243,7 @@ do_delete() {
                 first_user=0
                 users_failed_json="${users_failed_json}$(json_str "$username")"
             fi
-        done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
+        done <<< "$user_paths"
     fi
 
     [ -z "$deleted_json" ] && deleted_json="[]" || deleted_json="[${deleted_json}]"
