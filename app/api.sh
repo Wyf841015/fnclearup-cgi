@@ -162,63 +162,52 @@ do_delete() {
     echo "=== do_delete entered ===" >> "$DEBUG_LOG"
 
     [ "$REQUEST_METHOD" != "POST" ] && {
-        #echo "do_delete: not POST, returning 405" >> "$DEBUG_LOG"
         http_response "405 Method Not Allowed" "text/plain" "POST required"
         exit 0
     }
 
     body=$(cat)
-    echo "do_delete body len=${#body} first300=$body" >> "$DEBUG_LOG"
+    echo "do_delete body len=${#body}" >> "$DEBUG_LOG"
+    echo "do_delete body=$body" >> "$DEBUG_LOG"
 
     delete_users=false
-    #echo "$body" >> "$DEBUG_LOG"
-    #echo "$body" | grep -qE 'delete_users[[:space:]]*:[[:space:]]*true' 2>/dev/null && delete_users=true
-    #echo "$delete_users" >> "$DEBUG_LOG"
-    delete_users=$(echo "$body" | jq -r '.delete_users // false')
+    delete_users=$(echo "$body" | jq -r '.delete_users // false' 2>&1)
+    echo "do_delete: delete_users raw=$delete_users" >> "$DEBUG_LOG"
     if [ "$delete_users" = "true" ]; then
       delete_users=true
     else
       delete_users=false
     fi
-    #echo "$delete_users" >> "$DEBUG_LOG"
-   
-    paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
-    #echo "do_delete paths_str=$paths_str" >> "$DEBUG_LOG"
-
-  
+    echo "do_delete: delete_users bool=$delete_users" >> "$DEBUG_LOG"
 
     paths_str=$(echo "$body" | grep -oE '\[[^]]*\]' | head -1)
-    #echo "delete_paths_str=$paths_str" >> "$DEBUG_LOG"
+    echo "do_delete: paths_str=$paths_str" >> "$DEBUG_LOG"
 
     first_path=1 deleted_json="" failed_json="" total=0 failures=0
 
     if [ -n "$paths_str" ]; then
+        echo "do_delete: extracting paths from: $paths_str" >> "$DEBUG_LOG"
         while IFS= read -r path; do
             [ -z "$path" ] && continue
-           # echo "delete_path=$path" >> "$DEBUG_LOG"
-            if [ -e "$path" ]; then
-                # Try to delete - stat=0 means success, stat=1 means failure
-                rm -rf "$path" 2>/dev/null && stat=0 || stat=1
-                echo "do_delete: rm stat=$stat for path=$path" >> "$DEBUG_LOG"
-                if [ $stat -eq 0 ]; then
-                    [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
-                    first_path=0
-                    deleted_json="${deleted_json}$(json_str "$path")"
-                    total=$((total + 1))
-                else
-                    [ $first_path -eq 0 ] && failed_json="${failed_json},"
-                    first_path=0
-                    failed_json="${failed_json}$(json_str "$path")"
-                    failures=$((failures + 1))
-                fi
+            echo "do_delete: extracted path=$path" >> "$DEBUG_LOG"
+            # Try to delete - stat=0 means success, stat=1 means failure
+            rm -rf "$path" 2>&1 | tee -a "$DEBUG_LOG"
+            stat=$?
+            echo "do_delete: rm stat=$stat for path=$path" >> "$DEBUG_LOG"
+            if [ $stat -eq 0 ]; then
+                [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
+                first_path=0
+                deleted_json="${deleted_json}$(json_str "$path")"
+                total=$((total + 1))
             else
-                echo "do_delete: path does not exist: $path" >> "$DEBUG_LOG"
                 [ $first_path -eq 0 ] && failed_json="${failed_json},"
                 first_path=0
                 failed_json="${failed_json}$(json_str "$path")"
                 failures=$((failures + 1))
             fi
         done < <(echo "$paths_str" | grep -oE '\"[^\"]*\"' | tr -d '\\"')
+    else
+        echo "do_delete: paths_str is empty!" >> "$DEBUG_LOG"
     fi
 
     first_user=1 users_deleted_json="" users_failed_json=""
