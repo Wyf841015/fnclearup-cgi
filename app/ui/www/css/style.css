@@ -520,3 +520,69 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ========== Tab 选项卡 ========== */
+.tabs {
+  background: var(--color-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.tab-list {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--hover-bg-card);
+}
+
+.tab-btn {
+  padding: 14px 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+  color: var(--color-text);
+  background: var(--hover-bg);
+}
+
+.tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: var(--color-card);
+}
+
+.tab-panel {
+  display: none;
+  padding: 0;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.tab-panel > .card {
+  box-shadow: none;
+  border-radius: 0;
+  margin: 0;
+}
+
+.tab-panel > .card:first-child {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.tab-panel > .card:last-child {
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.tab-panel > .card:not(:first-child) {
+  border-top: none;
+  border-radius: 0;
+}

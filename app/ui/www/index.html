@@ -49,23 +49,42 @@
     </div>
   </div>
 
-  <div class="card" id="installed-section">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h2 style="margin:0;border:none;padding:0;">📋 已安装应用列表</h2>
-      <button type="button" class="btn" onclick="toggleInstalledList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
+  <!-- Tab 选项卡 -->
+  <div class="tabs">
+    <div class="tab-list" role="tablist">
+      <button type="button" class="tab-btn active" data-tab="app" onclick="switchTab('app')" role="tab" aria-selected="true" id="tab-btn-app">📁 应用卸载残余</button>
+      <button type="button" class="tab-btn" data-tab="disk" onclick="switchTab('disk')" role="tab" aria-selected="false" id="tab-btn-disk">💿 挂载网盘残余</button>
     </div>
-    <div id="installed-list" style="display:none;"></div>
-  </div>
 
-  <div class="card">
-    <h2>📂 残余目录（已安装应用不含这些目录）</h2>
-    <div class="toolbar">
-      <button type="button" class="btn" id="scanBtn" onclick="doScan()">🔍 开始扫描</button>
-      <button type="button" class="btn btn-danger" id="deleteBtn" onclick="confirmDelete()" disabled>🗑 删除选中</button>
-      <span class="select-info" id="selectInfo"></span>
+    <!-- Tab 1: 应用卸载残余 -->
+    <div class="tab-panel active" data-panel="app" role="tabpanel" id="panel-app">
+      <div class="card" id="installed-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h2 style="margin:0;border:none;padding:0;">📋 已安装应用列表</h2>
+          <button type="button" class="btn" onclick="toggleInstalledList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
+        </div>
+        <div id="installed-list" style="display:none;"></div>
+      </div>
+
+      <div class="card">
+        <h2>📂 残余目录（已安装应用不含这些目录）</h2>
+        <div class="toolbar">
+          <button type="button" class="btn" id="scanBtn" onclick="doScan()">🔍 开始扫描</button>
+          <button type="button" class="btn btn-danger" id="deleteBtn" onclick="confirmDelete()" disabled>🗑 删除选中</button>
+          <span class="select-info" id="selectInfo"></span>
+        </div>
+        <div id="status"></div>
+        <div id="orphan-list" style="margin-top:16px;"></div>
+      </div>
     </div>
-    <div id="status"></div>
-    <div id="orphan-list" style="margin-top:16px;"></div>
+
+    <!-- Tab 2: 挂载网盘残余 -->
+    <div class="tab-panel" data-panel="disk" role="tabpanel" id="panel-disk">
+      <div class="card">
+        <h2>💿 挂载网盘残余</h2>
+        <div class="empty" style="padding:60px 0;">功能开发中，敬请期待...</div>
+      </div>
+    </div>
   </div>
 </div>
 

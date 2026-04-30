@@ -336,6 +336,29 @@
     $('sponsorImgOverlay').style.display = 'flex';
   }
 
+
+  // ========== Tab 切换 ==========
+  function switchTab(tabName) {
+    // 更新按钮状态
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      if (btn.dataset.tab === tabName) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+      } else {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      }
+    });
+    // 更新面板显示
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+      if (panel.dataset.panel === tabName) {
+        panel.classList.add('active');
+      } else {
+        panel.classList.remove('active');
+      }
+    });
+  }
+
   // ========== 导出全局函数 ==========
   window.toggleTheme = toggleTheme;
   window.toggleAutoTheme = toggleAutoTheme;
@@ -348,5 +371,6 @@
   window.doDelete = doDelete;
   window.showSponsorModal = showSponsorModal;
   window.showSponsorImgFull = showSponsorImgFull;
+  window.switchTab = switchTab;
 
 })();
