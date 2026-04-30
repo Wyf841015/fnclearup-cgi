@@ -443,7 +443,7 @@ do_volumes() {
     # Step 3: Get all container mounts in ONE call, extract unique in-use volume names
     local used_file
     used_file=$(mktemp)
-    docker ps -a --format '{{json .Mounts}}' 2>/dev/null | grep -o '"Name":"[^"]*"' | cut -d'"' -f4 | grep -v '^$' | sort -u > "$used_file"
+    docker ps -a --format '{{json .Mounts}}' 2>/dev/null | jq -r '.[] | select(.Type == "volume") | .Name' 2>/dev/null | sort -u > "$used_file"
 
     # Step 4: Get all container names once
     local cont_file
