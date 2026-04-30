@@ -563,6 +563,7 @@
   window.toggleTheme = toggleTheme;
   window.toggleAutoTheme = toggleAutoTheme;
   window.toggleInstalledList = toggleInstalledList;
+  window.toggleMountsList = toggleMountsList;
   window.doScan = doScan;
   window.toggleSelectAll = toggleSelectAll;
   window.updateSelectInfo = updateSelectInfo;
