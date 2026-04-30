@@ -17,7 +17,7 @@
     </div>
     <div class="header-controls">
       <button type="button" class="sponsor-btn" onclick="showSponsorModal()" title="赞助作者">❤️ 赞助</button>
-      <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题" aria-label="切换明暗主题">☀️</button>
+      <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题" aria-label="切换明暗主题">☀️ 主题</button>
     </div>
   </div>
 
@@ -25,7 +25,7 @@
   <div class="tabs">
     <div class="tab-list" role="tablist">
       <button type="button" class="tab-btn active" data-tab="app" onclick="switchTab('app')" role="tab" aria-selected="true" id="tab-btn-app">📁 应用卸载残余</button>
-      <button type="button" class="tab-btn" data-tab="disk" onclick="switchTab('disk')" role="tab" aria-selected="false" id="tab-btn-disk">💿 挂载网盘残余</button>
+      <button type="button" class="tab-btn" data-tab="disk" onclick="switchTab('disk')" role="tab" aria-selected="false" id="tab-btn-disk">💿 网盘挂载残余</button>
     </div>
 
     <!-- Tab 1: 应用卸载残余 -->
@@ -98,22 +98,25 @@
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h2 style="margin:0;border:none;padding:0;">💿 使用中网盘挂载目录</h2>
+          <h2 style="margin:0;border:none;padding:0;">💿 在用网盘挂载目录</h2>
           <button type="button" class="btn" id="toggleMountsBtn" onclick="toggleMountsList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
         </div>
         <div id="mounts-status"></div>
         <div style="margin-top:8px;"></div>
-        <div id="mounts-list" style="margin-top:8px;"></div>
+        <div id="mounts-list" style="margin-top:8px;display:none;"></div>
       </div>
       <div class="card" style="margin-top:16px;">
-        <h2 style="margin:0 0 12px 0;border:none;padding:0;">📂 网盘挂载残余</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h2 style="margin:0;border:none;padding:0;font-size:16px;">📂 网盘挂载残余目录</h2>
+          <button type="button" class="btn" id="toggleVol02Btn" onclick="toggleVol02List(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
+        </div>
         <div id="vol02-status"></div>
         <div style="margin-top:8px;">
-          <button type="button" class="btn" id="scanVol02Btn" onclick="scanVol02()">🔍 开始扫描</button>
+          <button type="button" class="btn" id="scanVol02Btn" onclick="scanVol02()" style="display:none;">🔍 开始扫描</button>
           <button type="button" class="btn btn-danger" id="deleteVol02Btn" onclick="confirmDeleteVol02()" disabled>🗑 删除选中</button>
           <span id="vol02-select-info" style="margin-left:12px;font-size:13px;color:var(--color-text-secondary);"></span>
         </div>
-        <div id="vol02-list" style="margin-top:8px;"></div>
+        <div id="vol02-list" style="margin-top:8px;display:none;"></div>
       </div>
     </div>
   </div>

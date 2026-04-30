@@ -128,12 +128,12 @@ h3 { font-size: 18px; margin-bottom: 16px; color: var(--color-text); }
 .btn-cancel { background: #e5e7eb; color: #333; }
 .btn-cancel:hover { background: #d1d5db; }
 
-:root.dark .btn:disabled { background: #444; color: #888; }
-:root.dark .btn-danger { background: var(--color-danger); }
-:root.dark .btn-danger:hover { background: #ef4444; }
-:root.dark .btn-danger:disabled { background: #444; color: #888; }
-:root.dark .btn-cancel { background: #374151; color: #e0e0e0; }
-:root.dark .btn-cancel:hover { background: #4b5563; }
+html.dark .btn:disabled { background: #444; color: #888; }
+html.dark .btn-danger { background: var(--color-danger); }
+html.dark .btn-danger:hover { background: #ef4444; }
+html.dark .btn-danger:disabled { background: #444; color: #888; }
+html.dark .btn-cancel { background: #374151; color: #e0e0e0; }
+html.dark .btn-cancel:hover { background: #4b5563; }
 
 /* ========== 表格 ========== */
 table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -274,8 +274,6 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
   transition: all 0.2s;
 }
 .sponsor-btn:hover { box-shadow: 0 2px 8px rgba(236,72,153,0.2); }
-:root.dark .sponsor-btn { background: #374151; color: #f472b6; border-color: #4b5563; }
-:root.dark .sponsor-btn:hover { background: #4b5563; }
 
 /* ========== 主题切换按钮 ========== */
 .theme-toggle {
@@ -290,8 +288,8 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
   transition: all 0.2s;
 }
 .theme-toggle:hover { box-shadow: 0 2px 8px rgba(236,72,153,0.2); }
-:root.dark .theme-toggle { background: #374151; color: #f472b6; border-color: #4b5563; }
-:root.dark .theme-toggle:hover { background: #4b5563; }
+html.dark .theme-toggle { background: #374151; color: #f472b6; border-color: #4b5563; }
+html.dark .theme-toggle:hover { background: #4b5563; }
 
 
 /* ========== 赞助弹窗 ========== */
@@ -322,8 +320,8 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
   font-size: 16px;
 }
 .sponsor-modal-close:hover { background: #d1d5db; }
-:root.dark .sponsor-modal-close { background: #30363d; color: #e0e0e0; }
-:root.dark .sponsor-modal-close:hover { background: #484f58; }
+html.dark .sponsor-modal-close { background: #30363d; color: #e0e0e0; }
+html.dark .sponsor-modal-close:hover { background: #484f58; }
 
 .sponsor-qr-row {
   display: flex;
@@ -342,10 +340,10 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
   cursor: zoom-in;
 }
 .sponsor-qr-item img.wx { border-color: #07c160; }
-:root.dark .sponsor-qr-item p { color: var(--color-primary-light); }
-:root.dark .sponsor-qr-item p.wx { color: #4ade80; }
-:root.dark .sponsor-qr-item img { border-color: var(--color-primary-light); background: var(--color-bg); }
-:root.dark .sponsor-qr-item img.wx { border-color: #4ade80; }
+html.dark .sponsor-qr-item p { color: var(--color-primary-light); }
+html.dark .sponsor-qr-item p.wx { color: #4ade80; }
+html.dark .sponsor-qr-item img { border-color: var(--color-primary-light); background: var(--color-bg); }
+html.dark .sponsor-qr-item img.wx { border-color: #4ade80; }
 
 .sponsor-img-full-overlay {
   display: none;
@@ -364,8 +362,8 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
   border: 4px solid #fff;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
 }
-:root.dark .sponsor-img-full-overlay { background: rgba(0,0,0,0.95); }
-:root.dark .sponsor-img-full-overlay img { border-color: #e0e0e0; }
+html.dark .sponsor-img-full-overlay { background: rgba(0,0,0,0.95); }
+html.dark .sponsor-img-full-overlay img { border-color: #e0e0e0; }
 
 /* ========== Token 认证模态框 ========== */
 .auth-overlay {
@@ -406,18 +404,18 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
   color: #333;
 }
 .auth-card input:focus { border-color: var(--color-primary); }
-:root.dark .auth-overlay { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); }
-:root.dark .auth-card { background: #161b22; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-:root.dark .auth-card h2 { color: var(--color-text); }
-:root.dark .auth-card p { color: var(--color-text-secondary); }
-:root.dark .auth-card input[type="password"],
-:root.dark .auth-card input[type="text"] {
+html.dark .auth-overlay { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); }
+html.dark .auth-card { background: #161b22; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+html.dark .auth-card h2 { color: var(--color-text); }
+html.dark .auth-card p { color: var(--color-text-secondary); }
+html.dark .auth-card input[type="password"],
+html.dark .auth-card input[type="text"] {
   background: #0d1117;
   border-color: #30363d;
   color: #e0e0e0;
 }
-:root.dark .auth-card input[type="password"]:focus,
-:root.dark .auth-card input[type="text"]:focus { border-color: var(--color-primary); }
+html.dark .auth-card input[type="password"]:focus,
+html.dark .auth-card input[type="text"]:focus { border-color: var(--color-primary); }
 
 .btn-auth {
   width: 100%;
@@ -437,8 +435,8 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
 
 .auth-error { color: var(--color-danger); font-size: 13px; margin-top: 8px; min-height: 18px; }
 .auth-hint { color: var(--color-text-hint); font-size: 12px; margin-top: 12px; }
-:root.dark .auth-error { color: #f87171; }
-:root.dark .auth-hint { color: var(--color-text-hint); }
+html.dark .auth-error { color: #f87171; }
+html.dark .auth-hint { color: var(--color-text-hint); }
 
 /* ========== 页脚 ========== */
 .footer {
@@ -451,7 +449,7 @@ input[type="checkbox"]:focus { outline: 2px solid var(--color-primary); }
 }
 .footer a { color: #00d4ff; text-decoration: none; transition: color 0.2s; }
 .footer a:hover { color: #a855f7; text-decoration: underline; }
-:root.dark .footer { color: #94a3b8; }
+html.dark .footer { color: #94a3b8; }
 
 /* ========== 赞助头部 ========== */
 .sponsor-header {

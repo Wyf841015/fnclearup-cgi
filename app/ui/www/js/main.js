@@ -9,11 +9,9 @@
   const App = {
     installedApps: [],
     orphanData: {},
-    mountsLoaded: false,
-    vol02Scanned: false,  // {子目录名: [完整路径列表]}
     autoThemeTimer: null,
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
-    mountsLoaded: false,  // 网盘挂载数据是否已加载
+    mountsLoaded: false,   // 网盘挂载数据是否已加载
     vol02Scanned: false,   // vol02 是否已扫描
     manualOverride: false
   };
@@ -299,8 +297,9 @@
     if (tabName === 'disk') {
       App.mountsLoaded = false;
       App.vol02Scanned = false;
-      App.mountsLoaded = true; loadMounts();
-      scanVol02();
+      // 先加载 mounts（同步展开列表），然后扫描 vol02
+      await loadMounts();
+      await scanVol02();
     }
   }
 
@@ -309,14 +308,14 @@
   // ========== /vol02 未挂载目录 ==========
   async function scanVol02() {
     App.vol02Scanned = true;
-    await loadVol02();
-    // 扫描完成后自动展开列表
+    // Show vol02-list before loading
+    const scanBtn = $("scanVol02Btn");
     const btn = $("toggleVol02Btn");
     const list = $("vol02-list");
-    if (btn && list && list.style.display === "none") {
-      list.style.display = "block";
-      btn.textContent = "▼ 收起";
-    }
+    if (scanBtn) scanBtn.style.display = "";
+    if (list) { list.style.display = "block"; }
+    if (btn) btn.textContent = "▼ 收起";
+    await loadVol02();
   }
 
   async function loadVol02() {
@@ -449,9 +448,8 @@
       // Auto-rescan both mounts and vol02
       App.mountsLoaded = false;
       App.vol02Scanned = false;
-      loadMounts();
-      App.mountsLoaded = true;
-      scanVol02();
+      await loadMounts();
+      await scanVol02();
     } catch (e) {
       status.className = 'error';
       status.textContent = '❌ 删除失败: ' + e.message;
