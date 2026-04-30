@@ -8,7 +8,9 @@
   // ========== 命名空间 ==========
   const App = {
     installedApps: [],
-    orphanData: {},  // {子目录名: [完整路径列表]}
+    orphanData: {},
+    mountsLoaded: false,
+    vol02Scanned: false,  // {子目录名: [完整路径列表]}
     autoThemeTimer: null,
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
     mountsLoaded: false,  // 网盘挂载数据是否已加载
@@ -293,10 +295,12 @@
         panel.classList.remove('active');
       }
     });
-    // 切换到网盘挂载 Tab 时自动加载数据
+    // 切换到网盘挂载 Tab 时自动加载数据（每次切换都重新加载以刷新 KPI）
     if (tabName === 'disk') {
-      if (!App.mountsLoaded) { App.mountsLoaded = true; loadMounts(); }
-      if (!App.vol02Scanned) { scanVol02(); }
+      App.mountsLoaded = false;
+      App.vol02Scanned = false;
+      App.mountsLoaded = true; loadMounts();
+      scanVol02();
     }
   }
 
@@ -349,6 +353,7 @@
 
       status.className = 'success';
       status.textContent = `✅ /vol02 共 ${vol02_dirs.length} 个子目录，其中 ${unmounted.length} 个未在网盘挂载中使用`;
+      $('vol02-count').textContent = unmounted.length;
 
       if (unmounted.length === 0) {
         list.innerHTML = '<div class=\'empty\'>🎉 所有 /vol02 子目录都已在网盘挂载中使用</div>';
@@ -484,6 +489,7 @@
 
       status.className = 'success';
       status.textContent = `✅ 共 ${mounts.length} 个网盘挂载`;
+      $('mounts-count').textContent = mounts.length;
 
       if (mounts.length === 0) {
         list.innerHTML = '<div class=\'empty\'>暂无可用的网盘挂载</div>';

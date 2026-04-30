@@ -79,6 +79,23 @@
 
     <!-- Tab 2: 挂载网盘残余 -->
     <div class="tab-panel" data-panel="disk" role="tabpanel" id="panel-disk">
+      <!-- KPI 卡片 -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">💿</div>
+          <div class="kpi-body">
+            <div class="kpi-label">网盘挂载</div>
+            <div class="kpi-value" id="mounts-count">-</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon orange">📂</div>
+          <div class="kpi-body">
+            <div class="kpi-label">残余目录</div>
+            <div class="kpi-value" id="vol02-count">-</div>
+          </div>
+        </div>
+      </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <h2 style="margin:0;border:none;padding:0;">💿 使用中网盘挂载目录</h2>
@@ -89,7 +106,7 @@
         <div id="mounts-list" style="margin-top:8px;"></div>
       </div>
       <div class="card" style="margin-top:16px;">
-        <h2 style="margin:0 0 12px 0;border:none;padding:0;">📂 网盘挂载残余目录</h2>
+        <h2 style="margin:0 0 12px 0;border:none;padding:0;">📂 网盘挂载残余</h2>
         <div id="vol02-status"></div>
         <div style="margin-top:8px;">
           <button type="button" class="btn" id="scanVol02Btn" onclick="scanVol02()">🔍 开始扫描</button>
