@@ -214,8 +214,8 @@ do_delete() {
             fi
             # 尝试移除 FnOS 保护属性 (1属性=不允许删除)
             if command -v chattr &>/dev/null; then
-                echo "do_delete: trying chattr -1 on $path" >> "$DEBUG_LOG"
-                chattr -1 "$path" 2>>"$DEBUG_LOG"
+                echo "do_delete: trying chattr -i on $path" >> "$DEBUG_LOG"
+                chattr -i "$path" 2>>"$DEBUG_LOG"
             fi
             # Delete and capture exit status directly (不使用管道)
             rm -rf "$path"
