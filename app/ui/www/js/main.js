@@ -11,7 +11,7 @@
     orphanData: {},  // {子目录名: [完整路径列表]}
     autoThemeTimer: null,
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
-    mountsLoaded: false  // 网盘挂载数据是否已加载
+    mountsLoaded: false,  // 网盘挂载数据是否已加载
     manualOverride: false
   };
 
