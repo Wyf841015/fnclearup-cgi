@@ -443,7 +443,14 @@ do_volumes() {
     # Step 3: Get all container mounts in ONE call, extract unique in-use volume names
     local used_file
     used_file=$(mktemp)
-    docker ps -a --format '{{json .Mounts}}' 2>/dev/null | jq -r '.[] | select(.Type == "volume") | .Name' 2>/dev/null | sort -u > "$used_file"
+    # Debug: capture raw docker ps mounts output
+    docker ps -a --format '{{json .Mounts}}' 2>/dev/null > /tmp/docker_mounts_raw.txt
+    echo "DEBUG: docker_mounts_raw lines=$(wc -l < /tmp/docker_mounts_raw.txt)" >> "$DEBUG_LOG"
+    echo "DEBUG: first mount json=$(head -1 /tmp/docker_mounts_raw.txt)" >> "$DEBUG_LOG"
+    docker ps -a --format '{{json .Mounts}}' 2>/dev/null | jq -r '.[] | select(.Type == "volume") | .Name' 2>/dev/null > /tmp/docker_jq_out.txt
+    echo "DEBUG: jq output lines=$(wc -l < /tmp/docker_jq_out.txt)" >> "$DEBUG_LOG"
+    echo "DEBUG: jq first out=$(head -1 /tmp/docker_jq_out.txt)" >> "$DEBUG_LOG"
+    cat /tmp/docker_jq_out.txt | sort -u > "$used_file" 
 
     # Step 4: Get all container names once
     local cont_file
