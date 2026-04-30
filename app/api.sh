@@ -13,7 +13,7 @@ DEBUG_LOG="/tmp/fnclearup_debug.log"
     echo "PATH_INFO=$PATH_INFO"
     echo "REQUEST_METHOD=$REQUEST_METHOD"
     echo "REQUEST_URI=${REQUEST_URI:-}"
-} >> "$DEBUG_LOG"
+} > "$DEBUG_LOG"
 
 json_escape() {
     local str="$1" result="" i c
@@ -271,106 +271,52 @@ do_ping() {
 
 
 do_mounts() {
+    echo "=== do_mounts entered ===" >> "$DEBUG_LOG"
     local json_file="/etc/mountmgr/mount_info.json"
     [ ! -f "$json_file" ] && {
+        echo "do_mounts: file not found: $json_file" >> "$DEBUG_LOG"
         http_response "200 OK" "application/json" "{\"mounts\": [], \"success\": true, \"message\": \"mount_info.json not found\"}"
         exit 0
     }
 
-    # Use awk to extract objects containing mountPoint field
-    # The file is multi-line JSON, so we collect complete objects between { and }
+    echo "do_mounts: using jq to parse $json_file" >> "$DEBUG_LOG"
+
+    # Check if jq exists
+    if ! command -v jq &>/dev/null; then
+        echo "do_mounts: jq not found" >> "$DEBUG_LOG"
+        http_response "200 OK" "application/json" "{\"mounts\": [], \"success\": false, \"message\": \"jq not installed\"}"
+        exit 0
+    fi
+
+    # Use jq to extract all mount entries
+    # JSON structure: { uid: { mountId: { mountData } } }
+    # We want all objects that have a mountPoint field
     local mounts_json
-    mounts_json=$(awk '
-    BEGIN { depth=0; in_obj=0; obj=""; first=1; printf "[" }
-    {
-        for (i=1; i<=length($0); i++) {
-            c=substr($0,i,1)
-            if (c == "{") {
-                depth++
-                in_obj=1
+    mounts_json=$(jq -c '
+        [
+            to_entries[] |
+            .value |
+            to_entries[] |
+            .value |
+            select(.mountPoint != null and .mountPoint != "") |
+            {
+                address: .address // "",
+                cloudStorageTypeStr: .cloudStorageTypeStr // "",
+                comment: .comment // "",
+                mountPoint: .mountPoint // "",
+                path: .path // "",
+                port: (.port // 0) | tostring,
+                proto: .proto // "",
+                username: .username // ""
             }
-            if (in_obj) obj = obj c
-            if (c == "}") {
-                depth--
-                if (depth == 0 && in_obj) {
-                    # Check if this object has mountPoint
-                    if (obj ~ /"mountPoint"/) {
-                        # Extract fields using regex
-                        if (!first) printf ","
-                        first=0
-                        printf "{"
-                        
-                        # address
-                        if (match(obj, /"address"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            addr = arr[1]
-                        } else { addr = "" }
-                        if (match(obj, /"cloudStorageTypeStr"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            cst = arr[1]
-                        } else { cst = "" }
-                        if (match(obj, /"comment"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            com = arr[1]
-                        } else { com = "" }
-                        if (match(obj, /"mountPoint"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            mp = arr[1]
-                        } else { mp = "" }
-                        if (match(obj, /"path"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            p = arr[1]
-                        } else { p = "" }
-                        if (match(obj, /"port"[[:space:]]*:[[:space:]]*([0-9]+)/, arr)) {
-                            port = arr[1]
-                        } else { port = "" }
-                        if (match(obj, /"proto"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            proto = arr[1]
-                        } else { proto = "" }
-                        if (match(obj, /"username"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
-                            user = arr[1]
-                        } else { user = "" }
-                        
-                        # Escape JSON strings (basic)
-                        gsub(/\/, "\\", addr)
-                        gsub(/"/, "\"", addr)
-                        gsub(/\n/, "\n", addr)
-                        gsub(/\t/, "\t", addr)
-                        gsub(/\/, "\\", cst)
-                        gsub(/"/, "\"", cst)
-                        gsub(/\/, "\\", com)
-                        gsub(/"/, "\"", com)
-                        gsub(/\/, "\\", mp)
-                        gsub(/"/, "\"", mp)
-                        gsub(/\/, "\\", p)
-                        gsub(/"/, "\"", p)
-                        gsub(/\/, "\\", proto)
-                        gsub(/"/, "\"", proto)
-                        gsub(/\/, "\\", user)
-                        gsub(/"/, "\"", user)
-                        
-                        printf "\"address\":\"%s\",\"cloudStorageTypeStr\":\"%s\",\"comment\":\"%s\",\"mountPoint\":\"%s\",\"path\":\"%s\",\"port\":\"%s\",\"proto\":\"%s\",\"username\":\"%s\"" , addr, cst, com, mp, p, port, proto, user
-                        printf "}"
-                    }
-                    obj=""
-                    in_obj=0
-                }
-            }
-        }
-    }
-    END { printf "]" }' "$json_file" 2>/dev/null)
+        ]
+    ' "$json_file" 2>>"$DEBUG_LOG")
+
+    local jq_status=$?
+    echo "do_mounts: jq return status=$jq_status, mounts_json=$mounts_json" >> "$DEBUG_LOG"
 
     [ -z "$mounts_json" ] && mounts_json="[]"
     http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
 }
 
-
-
-
-
-case "$PATH_INFO" in
-/version) do_version ;;
-/scan)    do_scan    ;;
-/delete)  do_delete  ;;
-/ping)    do_ping    ;;
-/mounts)   do_mounts  ;;
-/debug)   do_debug   ;;
-*)
-    http_response "404 Not Found" "text/plain" "API endpoint not found"
-    ;;
-esac
+case "$PATH_INFO"
