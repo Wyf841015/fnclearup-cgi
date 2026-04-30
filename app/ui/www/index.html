@@ -25,30 +25,6 @@
     </div>
   </div>
 
-  <div class="kpi-row">
-    <div class="kpi-card">
-      <div class="kpi-icon blue">📦</div>
-      <div class="kpi-body">
-        <div class="kpi-label">安装应用</div>
-        <div class="kpi-value" id="installed-count">-</div>
-      </div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-icon orange">📂</div>
-      <div class="kpi-body">
-        <div class="kpi-label">残余目录</div>
-        <div class="kpi-value" id="orphan-count">-</div>
-      </div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-icon green">💾</div>
-      <div class="kpi-body">
-        <div class="kpi-label">受影响卷</div>
-        <div class="kpi-value" id="vol-count">-</div>
-      </div>
-    </div>
-  </div>
-
   <!-- Tab 选项卡 -->
   <div class="tabs">
     <div class="tab-list" role="tablist">
@@ -58,7 +34,33 @@
 
     <!-- Tab 1: 应用卸载残余 -->
     <div class="tab-panel active" data-panel="app" role="tabpanel" id="panel-app">
-      <div class="card" id="installed-section">
+      <!-- KPI 卡片 -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">📦</div>
+          <div class="kpi-body">
+            <div class="kpi-label">安装应用</div>
+            <div class="kpi-value" id="installed-count">-</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon orange">📂</div>
+          <div class="kpi-body">
+            <div class="kpi-label">残余目录</div>
+            <div class="kpi-value" id="orphan-count">-</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">💾</div>
+          <div class="kpi-body">
+            <div class="kpi-label">受影响卷</div>
+            <div class="kpi-value" id="vol-count">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 已安装应用列表 -->
+      <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <h2 style="margin:0;border:none;padding:0;">📋 已安装应用列表</h2>
           <button type="button" class="btn" onclick="toggleInstalledList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
@@ -66,6 +68,7 @@
         <div id="installed-list" style="display:none;"></div>
       </div>
 
+      <!-- 残余目录 -->
       <div class="card">
         <h2>📂 残余目录（已安装应用不含这些目录）</h2>
         <div class="toolbar">
