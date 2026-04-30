@@ -197,10 +197,10 @@ do_delete() {
             [ -z "$path" ] && continue
            # echo "delete_path=$path" >> "$DEBUG_LOG"
             if [ -e "$path" ]; then
-                [ -d "$path" ] && rm -rf "$path" 2>/dev/null && stat=0 || stat=1
-                [ -f "$path" ] && rm -f "$path" 2>/dev/null && stat=0 || stat=1
-               #  echo "stat=$stat" >> "$DEBUG_LOG"
-                if [ $stat -eq 1 ]; then
+                # Try to delete - stat=0 means success, stat=1 means failure
+                rm -rf "$path" 2>/dev/null && stat=0 || stat=1
+                echo "do_delete: rm stat=$stat for path=$path" >> "$DEBUG_LOG"
+                if [ $stat -eq 0 ]; then
                     [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
                     first_path=0
                     deleted_json="${deleted_json}$(json_str "$path")"
@@ -212,6 +212,7 @@ do_delete() {
                     failures=$((failures + 1))
                 fi
             else
+                echo "do_delete: path does not exist: $path" >> "$DEBUG_LOG"
                 [ $first_path -eq 0 ] && failed_json="${failed_json},"
                 first_path=0
                 failed_json="${failed_json}$(json_str "$path")"
