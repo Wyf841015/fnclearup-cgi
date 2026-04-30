@@ -409,21 +409,34 @@
         return;
       }
 
-      let html = `<div class="table-wrapper"><table class="orphan-table"><thead><tr><th style="width:40px;"><input type="checkbox" id="selectAllVol02" onchange="toggleSelectAllVol02(this)"></th><th>目录名</th><th>完整路径</th></tr></thead><tbody>`;
+      // Use event delegation - attach listener to list container
+      let html = `<div class="table-wrapper"><table class="orphan-table" id="vol02-table"><thead><tr><th style="width:40px;"><input type="checkbox" id="selectAllVol02"></th><th>目录名</th><th>完整路径</th></tr></thead><tbody>`;
       for (const dirName of unmounted) {
         const fullPath = '/vol02/' + dirName;
         const cbId = 'vol02_cb_' + dirName.replace(/[^a-zA-Z0-9]/g, '_');
         const escPath = fullPath.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
         html += `<tr>
-          <td><input type="checkbox" class="vol02-row-cb" id="${cbId}" data-dirname="${dirName}" data-fullpath="${escPath}" onchange="updateSelectInfoVol02()"></td>
+          <td><input type="checkbox" class="vol02-row-cb" id="${cbId}" data-dirname="${dirName}" data-fullpath="${escPath}"></td>
           <td style="font-family:monospace;font-size:13px;white-space:nowrap;">${dirName}</td>
           <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary);" title="${escPath}">${fullPath}</td>
         </tr>`;
       }
       html += '</tbody></table></div>';
-      console.log('[loadVol02] setting innerHTML, length:', html.length);
       list.innerHTML = html;
-      console.log('[loadVol02] innerHTML set, actual content:', list.innerHTML.substring(0, 200));
+      
+      // Event delegation for vol02 table
+      const vol02Table = document.getElementById('vol02-table');
+      if (vol02Table) {
+        vol02Table.addEventListener('change', function(e) {
+          if (e.target && e.target.classList.contains('vol02-row-cb')) {
+            updateSelectInfoVol02();
+          }
+          if (e.target && e.target.id === 'selectAllVol02') {
+            document.querySelectorAll('.vol02-row-cb').forEach(cb => cb.checked = e.target.checked);
+            updateSelectInfoVol02();
+          }
+        });
+      }
     } catch (e) {
       console.error('[loadVol02] error:', e);
       status.className = 'error';
