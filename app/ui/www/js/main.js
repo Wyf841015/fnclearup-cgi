@@ -36,89 +36,23 @@
   const $ = (id) => document.getElementById(id);
 
   // ========== 主题管理 ==========
-  function isSystemDark() {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-
-  // 深色时段: 22:00 - 06:00 或系统深色模式
-  function isDarkTime() {
-    const h = new Date().getHours();
-    const isNightTime = h >= 22 || h < 6;
-    if (App.autoThemeEnabled) {
-      return isNightTime || isSystemDark();
-    }
-    return isNightTime;
-  }
-
   function applyTheme(dark) {
     const html = document.documentElement;
-    const themeBtn = $('themeToggle');
     if (dark) {
       html.classList.add('dark');
-      themeBtn.textContent = '☀️';
     } else {
       html.classList.remove('dark');
-      themeBtn.textContent = '🌙';
-    }
-  }
-
-  function applyAutoTheme() {
-    if (!App.autoThemeEnabled) return;
-    applyTheme(isDarkTime());
-  }
-
-  function scheduleAutoTheme() {
-    if (App.autoThemeTimer) clearInterval(App.autoThemeTimer);
-    App.autoThemeTimer = setInterval(() => {
-      if (App.autoThemeEnabled) applyTheme(isDarkTime());
-    }, 30000); // 每30秒检查一次
-    // 监听系统主题变化
-    if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (App.autoThemeEnabled) applyTheme(isDarkTime());
-      });
-    }
-    // 立即应用一次
-    applyTheme(isDarkTime());
-    const sw = $('autoSwitch');
-    if (App.autoThemeEnabled) {
-      sw.classList.add('on');
-    } else {
-      sw.classList.remove('on');
     }
   }
 
   function toggleTheme() {
-    App.manualOverride = true;
     const isDark = document.documentElement.classList.contains('dark');
     applyTheme(!isDark);
-    if (App.autoThemeTimer) clearInterval(App.autoThemeTimer);
-    // 60秒后恢复自动
-    setTimeout(() => {
-      App.manualOverride = false;
-      scheduleAutoTheme();
-    }, 60000);
-  }
-
-  function toggleAutoTheme() {
-    App.autoThemeEnabled = !App.autoThemeEnabled;
-    localStorage.setItem('autoThemeEnabled', App.autoThemeEnabled);
-    const sw = $('autoSwitch');
-    if (App.autoThemeEnabled) {
-      sw.classList.add('on');
-      applyTheme(isDarkTime());
-      if (App.autoThemeTimer) clearInterval(App.autoThemeTimer);
-      App.autoThemeTimer = setInterval(() => {
-        if (App.autoThemeEnabled) applyTheme(isDarkTime());
-      }, 30000);
-    } else {
-      sw.classList.remove('on');
-    }
   }
 
   // ========== 初始化 ==========
   window.onload = function() {
-    scheduleAutoTheme();
+
     doScan();
   };
 
@@ -591,7 +525,6 @@
 
   // ========== 导出全局函数 ==========
   window.toggleTheme = toggleTheme;
-  window.toggleAutoTheme = toggleAutoTheme;
   window.toggleInstalledList = toggleInstalledList;
   window.toggleMountsList = toggleMountsList;
   window.toggleVol02List = toggleVol02List;
