@@ -345,14 +345,14 @@ do_vol02() {
         local jq_filter
         jq_filter=$(mktemp)
         cat > "$jq_filter" << 'JQFEOF2'
-map(
+[
     to_entries[] |
     .value |
     to_entries[] |
     .value |
     select(.mountPoint != null and .mountPoint != "") |
     .mountPoint
-)
+]
 JQFEOF2
         echo "do_vol02: running jq with filter file" >> "$DEBUG_LOG"
         mounted_points=$(jq -c -f "$jq_filter" "$json_file")
