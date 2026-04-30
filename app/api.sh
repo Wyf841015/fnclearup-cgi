@@ -212,6 +212,11 @@ do_delete() {
             else
                 echo "do_delete: path does NOT exist" >> "$DEBUG_LOG"
             fi
+            # 尝试移除 FnOS 保护属性 (1属性=不允许删除)
+            if command -v chattr &>/dev/null; then
+                echo "do_delete: trying chattr -1 on $path" >> "$DEBUG_LOG"
+                chattr -1 "$path" 2>>"$DEBUG_LOG"
+            fi
             # Delete and capture exit status directly (不使用管道)
             rm -rf "$path"
             stat=$?
@@ -219,6 +224,13 @@ do_delete() {
             if [ $stat -ne 0 ]; then
                 echo "do_delete: rm failed, trying ls to debug..." >> "$DEBUG_LOG"
                 ls -la "$path" >> "$DEBUG_LOG" 2>&1 || echo "ls failed" >> "$DEBUG_LOG"
+                echo "do_delete: checking parent dir perms..." >> "$DEBUG_LOG"
+                parent=$(dirname "$path")
+                ls -ld "$parent" >> "$DEBUG_LOG" 2>&1
+                echo "do_delete: checking mount status..." >> "$DEBUG_LOG"
+                mount | grep "$parent" >> "$DEBUG_LOG" 2>&1 || echo "not a mount point" >> "$DEBUG_LOG"
+                echo "do_delete: checking immutable attr..." >> "$DEBUG_LOG"
+                lsattr -d "$path" >> "$DEBUG_LOG" 2>&1 || echo "lsattr not available" >> "$DEBUG_LOG"
             fi
             if [ $stat -eq 0 ]; then
                 [ $first_path -eq 0 ] && deleted_json="${deleted_json},"
