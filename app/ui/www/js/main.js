@@ -361,7 +361,7 @@
     });
     // 切换到网盘挂载 Tab 时自动加载数据
     if (tabName === 'disk') {
-      if (!App.mountsLoaded) { loadMounts(); App.mountsLoaded = true; }
+      if (!App.mountsLoaded) { App.mountsLoaded = true; loadMounts(); }
       if (!App.vol02Scanned) { scanVol02(); }
     }
   }
@@ -519,6 +519,23 @@
     }
   }
 
+  // ========== 列表展开/收起 ==========
+  function toggleMountsList(btn) {
+    const list = $('mounts-list');
+    if (!list) return;
+    const isHidden = list.style.display === 'none';
+    list.style.display = isHidden ? 'block' : 'none';
+    btn.textContent = isHidden ? '▼ 收起' : '▶ 展开';
+  }
+
+  function toggleVol02List(btn) {
+    const list = $('vol02-list');
+    if (!list) return;
+    const isHidden = list.style.display === 'none';
+    list.style.display = isHidden ? 'block' : 'none';
+    btn.textContent = isHidden ? '▼ 收起' : '▶ 展开';
+  }
+
   // ========== 网盘挂载 ==========
   async function loadMounts() {
     const status = $('mounts-status');
@@ -560,14 +577,11 @@
       }
       html += '</tbody></table></div>';
       list.innerHTML = html;
-      // 加载完成后自动展开列表（首次加载时）
-      if (!App.mountsLoaded) {
-        App.mountsLoaded = true;
-        const btn = $("toggleMountsBtn");
-        if (btn && list.style.display === "none") {
-          list.style.display = "block";
-          btn.textContent = "▼ 收起";
-        }
+      // 加载完成后自动展开列表
+      const btn = $("toggleMountsBtn");
+      if (btn && list.style.display === "none") {
+        list.style.display = "block";
+        btn.textContent = "▼ 收起";
       }
     } catch (e) {
       status.className = 'error';
@@ -594,5 +608,6 @@
   window.loadVol02 = loadVol02;
   window.scanVol02 = scanVol02;
   window.confirmDeleteVol02 = confirmDeleteVol02;
+  window.toggleSelectAllVol02 = toggleSelectAllVol02;
 
 })();
