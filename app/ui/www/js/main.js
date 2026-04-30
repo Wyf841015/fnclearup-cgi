@@ -274,7 +274,7 @@
 
 
   // ========== Tab 切换 ==========
-  function switchTab(tabName) {
+  async function switchTab(tabName) {
     // 更新按钮状态
     document.querySelectorAll('.tab-btn').forEach(btn => {
       if (btn.dataset.tab === tabName) {
