@@ -319,4 +319,13 @@ do_mounts() {
     http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
 }
 
-case "$PATH_INFO"
+case "$PATH_INFO" in
+/version) do_version ;;
+/scan)    do_scan    ;;
+/delete)  do_delete  ;;
+/ping)    do_ping    ;;
+/mounts)  do_mounts  ;;
+*)
+    http_response "404 Not Found" "text/plain" "API endpoint not found"
+    ;;
+esac
