@@ -277,70 +277,91 @@ do_mounts() {
         exit 0
     }
 
-    # Use jq if available, otherwise parse manually
-    if command -v jq &>/dev/null; then
-        local mounts_json
-        mounts_json=$(jq -r '
-            to_entries[] |
-            .value | to_entries[] | .value |
-            {
-                uid: .key,
-                address: .value.address // "",
-                cloudStorageType: .value.cloudStorageType // 0,
-                cloudStorageTypeStr: .value.cloudStorageTypeStr // "",
-                comment: .value.comment // "",
-                mountPoint: .value.mountPoint // "",
-                path: .value.path // "",
-                port: .value.port // 0,
-                proto: .value.proto // "",
-                username: .value.username // "",
-                time: .value.time // 0
-            } |
-            [.uid, .address, .cloudStorageType, .cloudStorageTypeStr, .comment, .mountPoint, .path, .port, .proto, .username, .time] |
-            @csv
-        ' "$json_file" 2>/dev/null | while IFS= read -r line; do
-            IFS=',' read -r uid address cst cst_str comment mountpoint path port proto username time <<< "$line"
-            # Remove surrounding quotes from each field
-            uid=$(echo "$uid" | tr -d '"')
-            address=$(echo "$address" | tr -d '"')
-            cst=$(echo "$cst" | tr -d '"')
-            cst_str=$(echo "$cst_str" | tr -d '"')
-            comment=$(echo "$comment" | tr -d '"')
-            mountpoint=$(echo "$mountpoint" | tr -d '"')
-            path=$(echo "$path" | tr -d '"')
-            port=$(echo "$port" | tr -d '"')
-            proto=$(echo "$proto" | tr -d '"')
-            username=$(echo "$username" | tr -d '"')
-            time=$(echo "$time" | tr -d '"')
-            [ -z "$mountpoint" ] && continue
-            printf '{"uid":%s,"address":%s,"cloudStorageType":%s,"cloudStorageTypeStr":%s,"comment":%s,"mountPoint":%s,"path":%s,"port":%s,"proto":%s,"username":%s,"time":%s}\n'                 "$(json_str "$uid")"                 "$(json_str "$address")"                 "$(json_str "$cst")"                 "$(json_str "$cst_str")"                 "$(json_str "$comment")"                 "$(json_str "$mountpoint")"                 "$(json_str "$path")"                 "$(json_str "$port")"                 "$(json_str "$proto")"                 "$(json_str "$username")"                 "$(json_str "$time")"
-        done | awk 'BEGIN{printf "["} {if(NR>1)printf ","; printf} END{printf "]"}')
-        [ -z "$mounts_json" ] && mounts_json="[]"
-        http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
-    else
-        # Fallback: basic parsing without jq
-        local mounts_json="["
-        local first=1
-        while IFS= read -r line; do
-            mountpoint=$(echo "$line" | grep -oE '"mountPoint"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            [ -z "$mountpoint" ] && continue
-            cst_str=$(echo "$line" | grep -oE '"cloudStorageTypeStr"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            comment=$(echo "$line" | grep -oE '"comment"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            address=$(echo "$line" | grep -oE '"address"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            path=$(echo "$line" | grep -oE '"path"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            port=$(echo "$line" | grep -oE '"port"[[:space:]]*:[[:space:]]*[0-9]+' | grep -oE '[0-9]+')
-            proto=$(echo "$line" | grep -oE '"proto"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            username=$(echo "$line" | grep -oE '"username"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"//;s/"$//')
-            [ -z "$mountpoint" ] && continue
-            [ $first -eq 0 ] && mounts_json="${mounts_json},"
-            first=0
-            mounts_json="${mounts_json}{\"mountPoint\":$(json_str "$mountpoint"),\"cloudStorageTypeStr\":$(json_str "$cst_str"),\"comment\":$(json_str "$comment"),\"address\":$(json_str "$address"),\"path\":$(json_str "$path"),\"port\":$(json_str "$port"),\"proto\":$(json_str "$proto"),\"username\":$(json_str "$username")}"
-        done < <(cat "$json_file")
-        mounts_json="${mounts_json}]"
-        [ "$mounts_json" = "[]" ] || mounts_json="${mounts_json}"
-        http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
-    fi
+    # Use awk to extract objects containing mountPoint field
+    # The file is multi-line JSON, so we collect complete objects between { and }
+    local mounts_json
+    mounts_json=$(awk '
+    BEGIN { depth=0; in_obj=0; obj=""; first=1; printf "[" }
+    {
+        for (i=1; i<=length($0); i++) {
+            c=substr($0,i,1)
+            if (c == "{") {
+                depth++
+                in_obj=1
+            }
+            if (in_obj) obj = obj c
+            if (c == "}") {
+                depth--
+                if (depth == 0 && in_obj) {
+                    # Check if this object has mountPoint
+                    if (obj ~ /"mountPoint"/) {
+                        # Extract fields using regex
+                        if (!first) printf ","
+                        first=0
+                        printf "{"
+                        
+                        # address
+                        if (match(obj, /"address"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            addr = arr[1]
+                        } else { addr = "" }
+                        if (match(obj, /"cloudStorageTypeStr"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            cst = arr[1]
+                        } else { cst = "" }
+                        if (match(obj, /"comment"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            com = arr[1]
+                        } else { com = "" }
+                        if (match(obj, /"mountPoint"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            mp = arr[1]
+                        } else { mp = "" }
+                        if (match(obj, /"path"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            p = arr[1]
+                        } else { p = "" }
+                        if (match(obj, /"port"[[:space:]]*:[[:space:]]*([0-9]+)/, arr)) {
+                            port = arr[1]
+                        } else { port = "" }
+                        if (match(obj, /"proto"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            proto = arr[1]
+                        } else { proto = "" }
+                        if (match(obj, /"username"[[:space:]]*:[[:space:]]*"([^"]*)"/, arr)) {
+                            user = arr[1]
+                        } else { user = "" }
+                        
+                        # Escape JSON strings (basic)
+                        gsub(/\/, "\\", addr)
+                        gsub(/"/, "\"", addr)
+                        gsub(/\n/, "\n", addr)
+                        gsub(/\t/, "\t", addr)
+                        gsub(/\/, "\\", cst)
+                        gsub(/"/, "\"", cst)
+                        gsub(/\/, "\\", com)
+                        gsub(/"/, "\"", com)
+                        gsub(/\/, "\\", mp)
+                        gsub(/"/, "\"", mp)
+                        gsub(/\/, "\\", p)
+                        gsub(/"/, "\"", p)
+                        gsub(/\/, "\\", proto)
+                        gsub(/"/, "\"", proto)
+                        gsub(/\/, "\\", user)
+                        gsub(/"/, "\"", user)
+                        
+                        printf "\"address\":\"%s\",\"cloudStorageTypeStr\":\"%s\",\"comment\":\"%s\",\"mountPoint\":\"%s\",\"path\":\"%s\",\"port\":\"%s\",\"proto\":\"%s\",\"username\":\"%s\"" , addr, cst, com, mp, p, port, proto, user
+                        printf "}"
+                    }
+                    obj=""
+                    in_obj=0
+                }
+            }
+        }
+    }
+    END { printf "]" }' "$json_file" 2>/dev/null)
+
+    [ -z "$mounts_json" ] && mounts_json="[]"
+    http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
 }
+
+
+
+
 
 case "$PATH_INFO" in
 /version) do_version ;;
