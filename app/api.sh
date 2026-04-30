@@ -425,57 +425,22 @@ do_volumes() {
         return
     fi
 
-    # Step 1: Get all volume names
+    # Get all volume names -> temp file
     local vol_list_file
     vol_list_file=$(mktemp)
-    echo "do_volumes: getting docker volume ls" >> "$DEBUG_LOG"
     docker volume ls -q 2>/dev/null > "$vol_list_file"
-    local vol_count
-    vol_count=$(wc -l < "$vol_list_file" 2>/dev/null || echo 0)
-    echo "do_volumes: total volumes found: $vol_count" >> "$DEBUG_LOG"
 
-    # Build all volumes JSON
+    # Build all volumes array
     local all_json=""
     first=1
     while IFS= read -r vn; do
         [ -z "$vn" ] && continue
-        vn=$(echo "$vn" | tr -d '\r\n')
         [ $first -eq 1 ] && first=0 || all_json="${all_json},"
         all_json="${all_json}$(json_str "$vn")"
     done < "$vol_list_file"
     [ -n "$all_json" ] && all_json="[${all_json}]" || all_json="[]"
-    echo "do_volumes: all_json built, count=$vol_count" >> "$DEBUG_LOG"
 
-    # Step 2: Build set of in-use volumes by checking each container
-    # For each container, get its mounted volume names and write to used_file
-    local used_file
-    used_file=$(mktemp)
-    echo "do_volumes: getting container volume usage" >> "$DEBUG_LOG"
-
-    local cont_count
-    cont_count=$(docker ps -a -q 2>/dev/null | wc -l)
-    echo "do_volumes: container count: $cont_count" >> "$DEBUG_LOG"
-
-    # For each container, get volume names via inspect and append to used_file
-    while IFS= read -r cname; do
-        [ -z "$cname" ] && continue
-        cname=$(echo "$cname" | tr -d '\r\n')
-        # docker inspect outputs volume names, one per line, to stdout
-        docker inspect -- "{{range .Mounts}}{{.Name}}{{println}}{{end}}" "$cname" 2>/dev/null
-    done < <(docker ps -a --format '{{.Names}}' 2>/dev/null) >> "$used_file"
-
-    local used_count
-    used_count=$(wc -l < "$used_file" 2>/dev/null || echo 0)
-    echo "do_volumes: used_file lines (before dedup): $used_count" >> "$DEBUG_LOG"
-    echo "do_volumes: used_file sample: $(head -3 "$used_file" 2>/dev/null)" >> "$DEBUG_LOG"
-
-    # Sort and dedupe
-    sort -u "$used_file" > "${used_file}.sorted"
-    mv "${used_file}.sorted" "$used_file"
-    used_count=$(wc -l < "$used_file" 2>/dev/null || echo 0)
-    echo "do_volumes: used_file lines (after dedup): $used_count" >> "$DEBUG_LOG"
-
-    # Step 3: For each volume, determine in-use vs orphan
+    # Separate in-use and orphan
     local in_use_json=""
     local orphan_json=""
     first_in_use=1
@@ -483,28 +448,26 @@ do_volumes() {
 
     while IFS= read -r vol_name; do
         [ -z "$vol_name" ] && continue
-        vol_name=$(echo "$vol_name" | tr -d '\r\n')
-        [ -z "$vol_name" ] && continue
 
-        # Get volume driver and mountpoint
-        local driver="" mountpoint=""
-        driver=$(docker volume inspect -- "{{.Driver}}" "$vol_name" 2>/dev/null | tr -d '\r\n')
-        mountpoint=$(docker volume inspect -- "{{.Mountpoint}}" "$vol_name" 2>/dev/null | tr -d '\r\n')
-        echo "do_volumes: vol=$vol_name driver=$driver" >> "$DEBUG_LOG"
+        # Inspect volume for driver/mountpoint
+        local vol_info driver mountpoint
+        vol_info=$(docker volume inspect -- "$vol_name" 2>/dev/null)
+        driver=$(echo "$vol_info" | jq -r '.[0].Driver // ""' 2>/dev/null)
+        mountpoint=$(echo "$vol_info" | jq -r '.[0].Mountpoint // ""' 2>/dev/null)
 
-        # Find containers using this volume
-        local cont_file cont_list first_cont
+        # Find containers using this volume via docker inspect (accurate, includes stopped containers)
+        local cont_file cont_list first_cont has_cont
         cont_file=$(mktemp)
         docker ps -a --format '{{.Names}}' 2>/dev/null > "$cont_file"
         cont_list=""
         first_cont=1
+        has_cont=0
         while IFS= read -r cname; do
             [ -z "$cname" ] && continue
-            cname=$(echo "$cname" | tr -d '\r\n')
-            # Check if this volume is mounted in this container
             local vol_in_cont
-            vol_in_cont=$(docker inspect -- "{{range .Mounts}}{{.Name}}{{println}}{{end}}" "$cname" 2>/dev/null | grep -F "$vol_name" | head -1)
+            vol_in_cont=$(docker inspect -- "{{range .Mounts}}{{.Name}}{{println}}{{end}}" "$cname" 2>/dev/null | grep -F "$vol_name")
             if [ -n "$vol_in_cont" ]; then
+                has_cont=1
                 [ $first_cont -eq 1 ] && first_cont=0 || cont_list="${cont_list},"
                 cont_list="${cont_list}$(json_str "$cname")"
             fi
@@ -512,33 +475,81 @@ do_volumes() {
         rm -f "$cont_file"
         [ -z "$cont_list" ] && cont_list="[]" || cont_list="[${cont_list}]"
 
-        # Debug: show vol_name and used_file contents
-        echo "do_volumes: checking vol=[$vol_name]" >> "$DEBUG_LOG"
-        echo "do_volumes: used_file:" >> "$DEBUG_LOG"
-        cat "$used_file" >> "$DEBUG_LOG" 2>/dev/null
-        echo "do_volumes: ---end---" >> "$DEBUG_LOG"
-
-        # Check if in used_file
-        if grep -qF "$vol_name" "$used_file" 2>/dev/null; then
-            echo "do_volumes: $vol_name -> IN_USE" >> "$DEBUG_LOG"
+        # Classify by whether any container references this volume
+        if [ $has_cont -eq 1 ]; then
             [ $first_in_use -eq 1 ] && first_in_use=0 || in_use_json="${in_use_json},"
             in_use_json="${in_use_json}{\"name\":$(json_str "$vol_name"),\"driver\":$(json_str "$driver"),\"mountpoint\":$(json_str "$mountpoint"),\"containers\":${cont_list}}"
         else
-            echo "do_volumes: $vol_name -> ORPHAN" >> "$DEBUG_LOG"
             [ $first_orphan -eq 1 ] && first_orphan=0 || orphan_json="${orphan_json},"
             orphan_json="${orphan_json}{\"name\":$(json_str "$vol_name"),\"driver\":$(json_str "$driver"),\"mountpoint\":$(json_str "$mountpoint")}"
         fi
     done < "$vol_list_file"
 
-    rm -f "$vol_list_file" "$used_file"
+    rm -f "$vol_list_file"
 
     [ -z "$in_use_json" ] && in_use_json="[]" || in_use_json="[${in_use_json}]"
     [ -z "$orphan_json" ] && orphan_json="[]" || orphan_json="[${orphan_json}]"
 
-    echo "do_volumes: FINAL in_use_json=$in_use_json" >> "$DEBUG_LOG"
-    echo "do_volumes: FINAL orphan_json=$orphan_json" >> "$DEBUG_LOG"
+    echo "do_volumes: in_use=$(echo $in_use_json | jq length 2>/dev/null) orphan=$(echo $orphan_json | jq length 2>/dev/null)" >> "$DEBUG_LOG"
 
     http_response "200 OK" "application/json" "{\"volumes\":{\"all\":${all_json},\"in_use\":${in_use_json},\"orphan\":${orphan_json}},\"success\":true}"
 }
 
-c
+do_docker_delete() {
+    echo "=== do_docker_delete entered ===" >> "$DEBUG_LOG"
+
+    [ "$REQUEST_METHOD" != "POST" ] && {
+        http_response "405 Method Not Allowed" "text/plain" "POST required"
+        exit 0
+    }
+
+    body=$(cat)
+
+    if ! command -v docker &>/dev/null; then
+        http_response "200 OK" "application/json" '{"total":0,"failures":0,"errors":["docker not available"],"success":false}'
+        return
+    fi
+
+    local volumes_str
+    volumes_str=$(echo "$body" | jq -r '.volumes[]' 2>/dev/null)
+
+    first=1 deleted_json="" failed_json="" total=0 failures=0
+    errors_json="[]"
+
+    if [ -n "$volumes_str" ]; then
+        while IFS= read -r vol; do
+            [ -z "$vol" ] && continue
+            docker volume rm "$vol" 2>>"$DEBUG_LOG"
+            stat=$?
+            if [ $stat -eq 0 ]; then
+                [ $first -eq 1 ] && first=0 || deleted_json="${deleted_json},"
+                deleted_json="${deleted_json}$(json_str "$vol")"
+                total=$((total + 1))
+            else
+                [ $first -eq 1 ] && first=0 || failed_json="${failed_json},"
+                failed_json="${failed_json}$(json_str "$vol")"
+                failures=$((failures + 1))
+                errors_json=$(echo "$errors_json" | jq --arg e "failed: $vol" '. + [$e]')
+            fi
+        done <<< "$volumes_str"
+    fi
+
+    [ -z "$deleted_json" ] && deleted_json="[]" || deleted_json="[${deleted_json}]"
+    [ -z "$failed_json" ] && failed_json="[]" || failed_json="[${failed_json}]"
+
+    http_response "200 OK" "application/json" "{\"deleted\":${deleted_json},\"failed\":${failed_json},\"total\":${total},\"failures\":${failures},\"errors\":${errors_json},\"success\":true}"
+}
+
+case "$PATH_INFO" in
+/version) do_version ;;
+/scan)    do_scan    ;;
+/delete)  do_delete  ;;
+/ping)    do_ping    ;;
+/mounts)  do_mounts  ;;
+/vol02)   do_vol02   ;;
+/volumes) do_volumes ;;
+/volumes/delete) do_docker_delete ;;
+*)
+    http_response "404 Not Found" "text/plain" "API endpoint not found"
+    ;;
+esac
