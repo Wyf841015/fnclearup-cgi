@@ -523,7 +523,7 @@
   function toggleMountsList(btn) {
     const list = $('mounts-list');
     if (!list) return;
-    const isHidden = list.style.display === 'none';
+    const isHidden = false;
     list.style.display = isHidden ? 'block' : 'none';
     btn.textContent = isHidden ? '▼ 收起' : '▶ 展开';
   }
@@ -531,7 +531,7 @@
   function toggleVol02List(btn) {
     const list = $('vol02-list');
     if (!list) return;
-    const isHidden = list.style.display === 'none';
+    const isHidden = false;
     list.style.display = isHidden ? 'block' : 'none';
     btn.textContent = isHidden ? '▼ 收起' : '▶ 展开';
   }
