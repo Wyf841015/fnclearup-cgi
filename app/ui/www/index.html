@@ -26,6 +26,7 @@
     <div class="tab-list" role="tablist">
       <button type="button" class="tab-btn active" data-tab="app" onclick="switchTab('app')" role="tab" aria-selected="true" id="tab-btn-app">📁 应用卸载残余</button>
       <button type="button" class="tab-btn" data-tab="disk" onclick="switchTab('disk')" role="tab" aria-selected="false" id="tab-btn-disk">💿 网盘挂载残余</button>
+      <button type="button" class="tab-btn" data-tab="docker" onclick="switchTab('docker')" role="tab" aria-selected="false" id="tab-btn-docker">🐳 Docker残余卷</button>
     </div>
 
     <!-- Tab 1: 应用卸载残余 -->
@@ -114,6 +115,52 @@
           <span id="vol02-select-info" style="margin-left:12px;font-size:13px;color:var(--color-text-secondary);"></span>
         </div>
         <div id="vol02-list" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Docker残余卷 -->
+    <div class="tab-panel" data-panel="docker" role="tabpanel" id="panel-docker">
+      <!-- KPI 卡片 -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">📦</div>
+          <div class="kpi-body">
+            <div class="kpi-label">Docker所有卷</div>
+            <div class="kpi-value" id="docker-total-count">-</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">🔗</div>
+          <div class="kpi-body">
+            <div class="kpi-label">在用卷</div>
+            <div class="kpi-value" id="docker-inuse-count">-</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon orange">🗑</div>
+          <div class="kpi-body">
+            <div class="kpi-label">残余卷</div>
+            <div class="kpi-value" id="docker-orphan-count">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 在用Docker卷 -->
+      <div class="card">
+        <h2 style="margin:0 0 12px 0;border:none;padding:0;">🔗 Docker在用卷</h2>
+        <div id="docker-inuse-status"></div>
+        <div id="docker-inuse-list" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Docker残余卷 -->
+      <div class="card" style="margin-top:16px;">
+        <h2 style="margin:0 0 12px 0;border:none;padding:0;">🗑 Docker残余卷（未使用）</h2>
+        <div id="docker-orphan-status"></div>
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-danger" id="deleteDockerBtn" onclick="confirmDeleteDocker()" disabled>🗑 删除选中</button>
+          <span id="docker-select-info" style="margin-left:12px;font-size:13px;color:var(--color-text-secondary);"></span>
+        </div>
+        <div id="docker-orphan-list" style="margin-top:8px;"></div>
       </div>
     </div>
   </div>

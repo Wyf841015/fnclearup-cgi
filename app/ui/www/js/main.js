@@ -13,7 +13,8 @@
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
     mountsLoaded: false,   // 网盘挂载数据是否已加载
     vol02Scanned: false,   // vol02 是否已扫描
-    manualOverride: false
+    manualOverride: false,
+    dockerVolumesLoaded: false  // docker volumes 数据是否已加载
   };
 
   // ========== API 工具 ==========
@@ -301,6 +302,11 @@
       await loadMounts();
       await scanVol02();
     }
+    // 切换到 Docker 卷 Tab 时自动加载数据
+    if (tabName === 'docker') {
+      App.dockerVolumesLoaded = false;
+      await loadDockerVolumes();
+    }
   }
 
 
@@ -527,6 +533,157 @@
     }
   }
 
+
+
+  // ========== Docker 卷 ==========
+  async function loadDockerVolumes() {
+    if (App.dockerVolumesLoaded) return;
+    App.dockerVolumesLoaded = true;
+
+    const inuseStatus = $('docker-inuse-status');
+    const inuseList = $('docker-inuse-list');
+    const orphanStatus = $('docker-orphan-status');
+    const orphanList = $('docker-orphan-list');
+
+    inuseStatus.className = 'loading';
+    inuseStatus.textContent = '⏳ 正在加载...';
+    inuseList.innerHTML = '';
+    orphanStatus.className = 'loading';
+    orphanStatus.textContent = '⏳ 正在加载...';
+    orphanList.innerHTML = '';
+
+    try {
+      const data = await API.post('api/volumes', {});
+      const volumes = data.volumes || {};
+      const allVols = volumes.all || [];
+      const inUseVols = volumes.in_use || [];
+      const orphanVols = volumes.orphan || [];
+
+      // Update KPI
+      $('docker-total-count').textContent = allVols.length;
+      $('docker-inuse-count').textContent = inUseVols.length;
+      $('docker-orphan-count').textContent = orphanVols.length;
+
+      // Render in-use volumes
+      if (inUseVols.length === 0) {
+        inuseStatus.className = 'success';
+        inuseStatus.textContent = '✅ 暂无在用 Docker 卷';
+        inuseList.innerHTML = '<div class="empty">暂无在用的 Docker 卷</div>';
+      } else {
+        inuseStatus.className = 'success';
+        inuseStatus.textContent = `✅ 共 ${inUseVols.length} 个在用 Docker 卷`;
+        let html = '<div class="table-wrapper"><table class="orphan-table"><thead><tr><th>卷名称</th><th>驱动</th><th>关联容器</th></tr></thead><tbody>';
+        for (const v of inUseVols) {
+          const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          const containers = (v.containers || []).join(', ') || '-';
+          html += `<tr>
+            <td style="font-family:monospace;font-size:13px;white-space:nowrap;">${esc(v.name)}</td>
+            <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary);">${esc(v.driver)}</td>
+            <td style="font-size:13px;">${esc(containers)}</td>
+          </tr>`;
+        }
+        html += '</tbody></table></div>';
+        inuseList.innerHTML = html;
+      }
+
+      // Render orphan volumes
+      if (orphanVols.length === 0) {
+        orphanStatus.className = 'success';
+        orphanStatus.textContent = '✅ 暂无残余 Docker 卷';
+        orphanList.innerHTML = '<div class="empty">🎉 没有发现残余 Docker 卷</div>';
+        return;
+      }
+
+      orphanStatus.className = 'success';
+      orphanStatus.textContent = `⚠️ 共 ${orphanVols.length} 个残余 Docker 卷`;
+      let html = `<div class="table-wrapper"><table class="orphan-table" id="docker-orphan-table">
+        <thead><tr>
+          <th style="width:40px;"><input type="checkbox" id="selectAllDocker"></th>
+          <th>卷名称</th>
+          <th>驱动</th>
+        </tr></thead><tbody>`;
+      for (const v of orphanVols) {
+        const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const cbId = 'docker_cb_' + v.name.replace(/[^a-zA-Z0-9]/g, '_');
+        html += `<tr>
+          <td><input type="checkbox" class="docker-orphan-cb" id="${cbId}" data-volname="${esc(v.name)}"></td>
+          <td style="font-family:monospace;font-size:13px;white-space:nowrap;">${esc(v.name)}</td>
+          <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary);">${esc(v.driver)}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+      orphanList.innerHTML = html;
+
+      // Event delegation
+      const tbl = document.getElementById('docker-orphan-table');
+      if (tbl) {
+        tbl.addEventListener('change', function(e) {
+          if (e.target && e.target.classList.contains('docker-orphan-cb')) {
+            updateDockerSelectInfo();
+          }
+          if (e.target && e.target.id === 'selectAllDocker') {
+            document.querySelectorAll('.docker-orphan-cb').forEach(cb => cb.checked = e.target.checked);
+            updateDockerSelectInfo();
+          }
+        });
+      }
+    } catch (e) {
+      inuseStatus.className = 'error';
+      inuseStatus.textContent = '❌ 加载失败: ' + e.message;
+      orphanStatus.className = 'error';
+      orphanStatus.textContent = '❌ 加载失败: ' + e.message;
+    }
+  }
+
+  function updateDockerSelectInfo() {
+    const checked = document.querySelectorAll('.docker-orphan-cb:checked');
+    const info = $('docker-select-info');
+    const deleteBtn = $('deleteDockerBtn');
+    if (info) info.textContent = checked.length > 0 ? `已选 ${checked.length} 个卷` : '';
+    if (deleteBtn) deleteBtn.disabled = checked.length === 0;
+  }
+
+  function getSelectedDockerVolumes() {
+    const checked = document.querySelectorAll('.docker-orphan-cb:checked');
+    const names = [];
+    for (const cb of checked) names.push(cb.dataset.volname);
+    return names;
+  }
+
+  function confirmDeleteDocker() {
+    const names = getSelectedDockerVolumes();
+    if (names.length === 0) return;
+    const msg = `即将删除以下 ${names.length} 个 Docker 卷：\n${names.join('\n')}\n\n⚠️ 此操作不可恢复！`;
+    if (!confirm(msg)) return;
+    doDeleteDocker(names);
+  }
+
+  async function doDeleteDocker(volNames) {
+    const status = $('docker-orphan-status');
+    status.className = 'loading';
+    status.textContent = '⏳ 正在删除...';
+
+    try {
+      const result = await API.post('api/docker_delete', { volumes: volNames });
+      const total = result.total || 0;
+      const failures = result.failures || 0;
+      let msg = `📁 已删除: ${total} 个卷`;
+      if (failures > 0) msg += `，失败 ${failures} 个`;
+      if (result.errors && result.errors.length > 0) {
+        msg += '\n错误: ' + result.errors.join('; ');
+      }
+      status.className = failures > 0 ? 'warning' : 'success';
+      status.textContent = msg;
+      alert(msg);
+      App.dockerVolumesLoaded = false;
+      await loadDockerVolumes();
+    } catch (e) {
+      status.className = 'error';
+      status.textContent = '❌ 删除失败: ' + e.message;
+    }
+  }
+
+
   // ========== 导出全局函数 ==========
   window.toggleTheme = toggleTheme;
   window.toggleInstalledList = toggleInstalledList;
@@ -546,5 +703,8 @@
   window.scanVol02 = scanVol02;
   window.confirmDeleteVol02 = confirmDeleteVol02;
   window.toggleSelectAllVol02 = toggleSelectAllVol02;
+  window.loadDockerVolumes = loadDockerVolumes;
+  window.confirmDeleteDocker = confirmDeleteDocker;
+  window.updateDockerSelectInfo = updateDockerSelectInfo;
 
 })();
