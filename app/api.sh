@@ -440,24 +440,19 @@ do_volumes() {
     done < "$vol_list_file"
     [ -n "$all_json" ] && all_json="[${all_json}]" || all_json="[]"
 
-    # Step 3: Get all container mounts in ONE call, extract unique in-use volume names
-    local used_file
-    used_file=$(mktemp)
-    # Debug: capture raw docker ps mounts output
-    docker ps -a --format '{{json .Mounts}}' 2>/dev/null > /tmp/docker_mounts_raw.txt
-    echo "DEBUG: docker_mounts_raw lines=$(wc -l < /tmp/docker_mounts_raw.txt)" >> "$DEBUG_LOG"
-    echo "DEBUG: first mount json=$(head -1 /tmp/docker_mounts_raw.txt)" >> "$DEBUG_LOG"
-    docker ps -a --format '{{json .Mounts}}' 2>/dev/null | jq -r '.[] | select(.Type == "volume") | .Name' 2>/dev/null > /tmp/docker_jq_out.txt
-    echo "DEBUG: jq output lines=$(wc -l < /tmp/docker_jq_out.txt)" >> "$DEBUG_LOG"
-    echo "DEBUG: jq first out=$(head -1 /tmp/docker_jq_out.txt)" >> "$DEBUG_LOG"
-    cat /tmp/docker_jq_out.txt | sort -u > "$used_file" 
+    # Step 3: Build a lookup file: each line "containerName:volName"
+    # docker inspect outputs one JSON array per container; process each line separately
+    # to preserve container identity
+    local vol_lookup_file
+    vol_lookup_file=$(mktemp)
+    docker inspect $(docker ps -aq) --format '{{.Name}}|{{json .Mounts}}' 2>/dev/null | while IFS='|' read -r cname mounts_json; do
+        [ -z "$cname" ] || [ -z "$mounts_json" ] && continue
+        echo "$mounts_json" | jq -r '.[] | select(.Type == "volume") | "\(cname)|\(.Name)"' 2>/dev/null
+    done > "$vol_lookup_file"
+    echo "DEBUG: vol_lookup lines=$(wc -l < $vol_lookup_file)" >> "$DEBUG_LOG"
+    echo "DEBUG: vol_lookup sample=$(head -3 $vol_lookup_file)" >> "$DEBUG_LOG"
 
-    # Step 4: Get all container names once
-    local cont_file
-    cont_file=$(mktemp)
-    docker ps -a --format '{{.Names}}' 2>/dev/null > "$cont_file"
-
-    # Step 5: Iterate volumes - classify in-use vs orphan, only inspect in-use
+    # Step 4: Iterate volumes - classify in-use vs orphan, only inspect in-use
     local in_use_json=""
     local orphan_json=""
     first_in_use=1
@@ -466,39 +461,36 @@ do_volumes() {
     while IFS= read -r vol_name; do
         [ -z "$vol_name" ] && continue
 
-        # Classify by used_file (fast grep)
-        if grep -qF "$vol_name" "$used_file" 2>/dev/null; then
-            # In-use: inspect volume + find containers (only for in-use)
+        # Find all containers using this volume
+        local cont_list first_cont
+        cont_list=""
+        first_cont=1
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            local cname
+            cname=$(echo "$line" | cut -d'|' -f1)
+            [ -z "$cname" ] && continue
+            [ $first_cont -eq 1 ] && first_cont=0 || cont_list="${cont_list},"
+            cont_list="${cont_list}$(json_str "$cname")"
+        done < <(grep -F "|${vol_name}$" "$vol_lookup_file" 2>/dev/null)
+        [ -z "$cont_list" ] && cont_list="[]" || cont_list="[${cont_list}]"
+
+        # Classify
+        if [ $first_cont -eq 0 ]; then
+            # In-use: inspect volume for driver/mountpoint
             local vol_info driver mountpoint
             vol_info=$(docker volume inspect -- "$vol_name" 2>/dev/null)
             driver=$(echo "$vol_info" | jq -r '.[0].Driver // ""' 2>/dev/null)
             mountpoint=$(echo "$vol_info" | jq -r '.[0].Mountpoint // ""' 2>/dev/null)
-
-            # Find which containers use this volume
-            local cont_list first_cont
-            cont_list=""
-            first_cont=1
-            while IFS= read -r cname; do
-                [ -z "$cname" ] && continue
-                local vol_in_cont
-                vol_in_cont=$(docker inspect -- "{{range .Mounts}}{{.Name}}{{println}}{{end}}" "$cname" 2>/dev/null | grep -F "$vol_name")
-                if [ -n "$vol_in_cont" ]; then
-                    [ $first_cont -eq 1 ] && first_cont=0 || cont_list="${cont_list},"
-                    cont_list="${cont_list}$(json_str "$cname")"
-                fi
-            done < "$cont_file"
-            [ -z "$cont_list" ] && cont_list="[]" || cont_list="[${cont_list}]"
-
             [ $first_in_use -eq 1 ] && first_in_use=0 || in_use_json="${in_use_json},"
             in_use_json="${in_use_json}{\"name\":$(json_str "$vol_name"),\"driver\":$(json_str "$driver"),\"mountpoint\":$(json_str "$mountpoint"),\"containers\":${cont_list}}"
         else
-            # Orphan: no inspect needed, just collect name
             [ $first_orphan -eq 1 ] && first_orphan=0 || orphan_json="${orphan_json},"
             orphan_json="${orphan_json}{\"name\":$(json_str "$vol_name")}"
         fi
     done < "$vol_list_file"
 
-    rm -f "$vol_list_file" "$used_file" "$cont_file"
+    rm -f "$vol_list_file" "$vol_lookup_file"
 
     [ -z "$in_use_json" ] && in_use_json="[]" || in_use_json="[${in_use_json}]"
     [ -z "$orphan_json" ] && orphan_json="[]" || orphan_json="[${orphan_json}]"
@@ -507,7 +499,6 @@ do_volumes() {
 
     http_response "200 OK" "application/json" "{\"volumes\":{\"all\":${all_json},\"in_use\":${in_use_json},\"orphan\":${orphan_json}},\"success\":true}"
 }
-
 do_docker_delete() {
     echo "=== do_docker_delete entered ===" >> "$DEBUG_LOG"
 
