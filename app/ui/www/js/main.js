@@ -534,12 +534,6 @@
       }
       html += '</tbody></table></div>';
       list.innerHTML = html;
-      // 加载完成后自动展开列表
-      const btn = $("toggleMountsBtn");
-      if (btn && list.style.display === "none") {
-        list.style.display = "block";
-        btn.textContent = "▼ 收起";
-      }
     } catch (e) {
       status.className = 'error';
       status.textContent = '❌ 加载失败: ' + e.message;

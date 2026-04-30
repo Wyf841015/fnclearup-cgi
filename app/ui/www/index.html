@@ -13,7 +13,7 @@
   <div class="header">
     <div class="header-left">
       <h1>🧹 FnOS 残余目录清理精灵</h1>
-      <p class="subtitle">扫描所有 vol 目录，找出已卸载应用的残留目录文件和系统用户，以及挂载网盘残余目录，一键删除</p>
+      <p class="subtitle">扫描所有 vol 目录，找出已卸载应用（含关联的系统用户）、已删除网盘挂载、已删除docker的残留目录，一键删除</p>
     </div>
     <div class="header-controls">
       <button type="button" class="sponsor-btn" onclick="showSponsorModal()" title="赞助作者">❤️ 赞助</button>
@@ -125,7 +125,7 @@
         <div class="kpi-card">
           <div class="kpi-icon blue">📦</div>
           <div class="kpi-body">
-            <div class="kpi-label">Docker所有卷</div>
+            <div class="kpi-label">所有卷</div>
             <div class="kpi-value" id="docker-total-count">-</div>
           </div>
         </div>
