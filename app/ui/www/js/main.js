@@ -372,6 +372,13 @@
   async function scanVol02() {
     App.vol02Scanned = true;
     await loadVol02();
+    // 扫描完成后自动展开列表
+    const btn = $("toggleVol02Btn");
+    const list = $("vol02-list");
+    if (btn && list && list.style.display === "none") {
+      list.style.display = "block";
+      btn.textContent = "▼ 收起";
+    }
   }
 
   async function loadVol02() {
@@ -553,6 +560,15 @@
       }
       html += '</tbody></table></div>';
       list.innerHTML = html;
+      // 加载完成后自动展开列表（首次加载时）
+      if (!App.mountsLoaded) {
+        App.mountsLoaded = true;
+        const btn = $("toggleMountsBtn");
+        if (btn && list.style.display === "none") {
+          list.style.display = "block";
+          btn.textContent = "▼ 收起";
+        }
+      }
     } catch (e) {
       status.className = 'error';
       status.textContent = '❌ 加载失败: ' + e.message;
@@ -564,6 +580,7 @@
   window.toggleAutoTheme = toggleAutoTheme;
   window.toggleInstalledList = toggleInstalledList;
   window.toggleMountsList = toggleMountsList;
+  window.toggleVol02List = toggleVol02List;
   window.doScan = doScan;
   window.toggleSelectAll = toggleSelectAll;
   window.updateSelectInfo = updateSelectInfo;

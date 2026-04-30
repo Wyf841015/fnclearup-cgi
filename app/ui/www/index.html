@@ -89,11 +89,13 @@
           <button type="button" class="btn" id="toggleMountsBtn" onclick="toggleMountsList(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
         </div>
         <div id="mounts-status"></div>
-        <div id="mounts-list" style="margin-top:16px;display:none;"></div>
+        <div style="margin-top:8px;"></div>
+        <div id="mounts-list" style="margin-top:8px;display:none;"></div>
       </div>
       <div class="card" style="margin-top:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h2 style="margin:0;border:none;padding:0;">📂 未挂载目录（不在使用的网盘挂载中）</h2>
+          <h2 style="margin:0;border:none;padding:0;">📂 未挂载目录</h2>
+          <button type="button" class="btn" id="toggleVol02Btn" onclick="toggleVol02List(this)" style="padding:6px 14px;font-size:13px;">▶ 展开</button>
         </div>
         <div id="vol02-status"></div>
         <div style="margin-top:8px;">
@@ -101,7 +103,7 @@
           <button type="button" class="btn btn-danger" id="deleteVol02Btn" onclick="confirmDeleteVol02()" disabled>🗑 删除选中</button>
           <span id="vol02-select-info" style="margin-left:12px;font-size:13px;color:var(--color-text-secondary);"></span>
         </div>
-        <div id="vol02-list" style="margin-top:8px;"></div>
+        <div id="vol02-list" style="margin-top:8px;display:none;"></div>
       </div>
     </div>
   </div>
