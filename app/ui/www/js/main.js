@@ -12,6 +12,7 @@
     autoThemeTimer: null,
     autoThemeEnabled: localStorage.getItem('autoThemeEnabled') !== 'false',  // 默认开启
     mountsLoaded: false,  // 网盘挂载数据是否已加载
+    vol02Loaded: false,    // vol02 目录数据是否已加载
     manualOverride: false
   };
 
@@ -359,12 +360,77 @@
       }
     });
     // 切换到网盘挂载 Tab 时加载数据
-    if (tabName === 'disk' && !App.mountsLoaded) {
-      loadMounts();
-      App.mountsLoaded = true;
+    if (tabName === 'disk') {
+      if (!App.mountsLoaded) { loadMounts(); App.mountsLoaded = true; }
+      if (!App.vol02Loaded) { loadVol02(); App.vol02Loaded = true; }
     }
   }
 
+
+
+  // ========== /vol02 未挂载目录 ==========
+  async function loadVol02() {
+    const status = $('vol02-status');
+    const list = $('vol02-list');
+    status.className = 'loading';
+    status.textContent = '⏳ 正在加载...';
+    list.innerHTML = '';
+
+    try {
+      const data = await API.post('api/vol02', {});
+      const vol02_dirs = data.vol02_dirs || [];
+      const mounted_points = data.mounted_points || [];
+
+      // Build a set of mounted point directory names (last path component)
+      const mountedSet = new Set();
+      for (const mp of mounted_points) {
+        // mp like /mnt/cloud/baidu or /mnt/media
+        const name = mp.split('/').pop();
+        if (name) mountedSet.add(name);
+      }
+
+      // Filter vol02 dirs that are NOT in mountedSet
+      const unmounted = vol02_dirs.filter(d => !mountedSet.has(d));
+
+      status.className = 'success';
+      status.textContent = `✅ /vol02 共 ${vol02_dirs.length} 个子目录，其中 ${unmounted.length} 个未在网盘挂载中使用`;
+
+      if (unmounted.length === 0) {
+        list.innerHTML = '<div class=\'empty\'>🎉 所有 /vol02 子目录都已在网盘挂载中使用</div>';
+        return;
+      }
+
+      let html = `<div class="table-wrapper"><table class="orphan-table"><thead><tr><th style="width:40px;"><input type="checkbox" id="selectAllVol02" onchange="toggleSelectAllVol02(this)"></th><th>目录名</th><th>完整路径</th></tr></thead><tbody>`;
+      for (const dirName of unmounted) {
+        const fullPath = '/vol02/' + dirName;
+        const cbId = 'vol02_cb_' + dirName.replace(/[^a-zA-Z0-9]/g, '_');
+        const escPath = fullPath.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        html += `<tr>
+          <td><input type="checkbox" class="vol02-row-cb" id="${cbId}" data-dirname="${dirName}" data-fullpath="${escPath}" onchange="updateSelectInfoVol02()"></td>
+          <td style="font-family:monospace;font-size:13px;white-space:nowrap;">${dirName}</td>
+          <td style="font-family:monospace;font-size:13px;color:var(--color-text-secondary);" title="${escPath}">${fullPath}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+      list.innerHTML = html;
+    } catch (e) {
+      status.className = 'error';
+      status.textContent = '❌ 加载失败: ' + e.message;
+    }
+  }
+
+  function toggleSelectAllVol02(el) {
+    document.querySelectorAll('.vol02-row-cb').forEach(cb => cb.checked = el.checked);
+    updateSelectInfoVol02();
+  }
+
+  function updateSelectInfoVol02() {
+    const checked = document.querySelectorAll('.vol02-row-cb:checked');
+    const info = $('vol02-select-info');
+    if (info) {
+      info.textContent = checked.length > 0 ? `已选 ${checked.length} 个目录` : '';
+    }
+  }
 
   // ========== 网盘挂载 ==========
   async function loadMounts() {
@@ -427,5 +493,6 @@
   window.showSponsorImgFull = showSponsorImgFull;
   window.switchTab = switchTab;
   window.loadMounts = loadMounts;
+  window.loadVol02 = loadVol02;
 
 })();

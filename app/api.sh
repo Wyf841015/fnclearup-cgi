@@ -324,6 +324,55 @@ JQFEOF
     http_response "200 OK" "application/json" "{\"mounts\": $mounts_json, \"success\": true}"
 }
 
+
+do_vol02() {
+    echo "=== do_vol02 entered ===" >> "$DEBUG_LOG"
+
+    local json_file="/etc/mountmgr/mount_info.json"
+    local vol02_base="/vol02"
+
+    # Get all subdirectories in /vol02
+    local vol02_dirs=""
+    local first=1
+    if [ -d "$vol02_base" ]; then
+        for dir in "$vol02_base"/*; do
+            [ -d "$dir" ] || continue
+            dir_name="${dir##*/}"
+            [ $first -eq 1 ] && first=0 || vol02_dirs="${vol02_dirs},"
+            vol02_dirs="${vol02_dirs}$(json_str "$dir_name")"
+        done
+    fi
+    [ -z "$vol02_dirs" ] && vol02_dirs="[]" || vol02_dirs="[${vol02_dirs}]"
+
+    echo "do_vol02: vol02_dirs=$vol02_dirs" >> "$DEBUG_LOG"
+
+    # Get mounted mountPoints from mount_info.json
+    local mounted_points="[]"
+    if [ -f "$json_file" ]; then
+        local jq_filter
+        jq_filter=$(mktemp)
+        cat > "$jq_filter" << 'JQFEOF2'
+        [
+            to_entries[] |
+            .value |
+            to_entries[] |
+            .value |
+            select(.mountPoint != null and .mountPoint != "") |
+            .mountPoint
+        ]
+JQFEOF2
+        mounted_points=$(jq -c -f "$jq_filter" "$json_file" 2>>"$DEBUG_LOG")
+        rm -f "$jq_filter"
+    fi
+
+    echo "do_vol02: mounted_points=$mounted_points" >> "$DEBUG_LOG"
+
+    [ -z "$mounted_points" ] && mounted_points="[]"
+
+    http_response "200 OK" "application/json" "{\"vol02_dirs\": ${vol02_dirs}, \"mounted_points\": ${mounted_points}, \"success\": true}"
+}
+
+
 case "$PATH_INFO" in
 /version) do_version ;;
 /scan)    do_scan    ;;
