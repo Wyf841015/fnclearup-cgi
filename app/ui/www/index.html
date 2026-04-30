@@ -96,7 +96,10 @@
           <h2 style="margin:0;border:none;padding:0;">📂 未挂载目录（不在使用的网盘挂载中）</h2>
         </div>
         <div id="vol02-status"></div>
-        <div id="vol02-select-info" style="margin:8px 0;font-size:13px;color:var(--color-text-secondary);"></div>
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-danger" id="deleteVol02Btn" onclick="confirmDeleteVol02()" disabled>🗑 删除选中</button>
+          <span id="vol02-select-info" style="margin-left:12px;font-size:13px;color:var(--color-text-secondary);"></span>
+        </div>
         <div id="vol02-list" style="margin-top:8px;"></div>
       </div>
     </div>

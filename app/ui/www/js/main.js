@@ -439,8 +439,53 @@
   function updateSelectInfoVol02() {
     const checked = document.querySelectorAll('.vol02-row-cb:checked');
     const info = $('vol02-select-info');
+    const deleteBtn = $('deleteVol02Btn');
     if (info) {
       info.textContent = checked.length > 0 ? `已选 ${checked.length} 个目录` : '';
+    }
+    if (deleteBtn) {
+      deleteBtn.disabled = checked.length === 0;
+    }
+  }
+
+  function getSelectedVol02Paths() {
+    const checked = document.querySelectorAll('.vol02-row-cb:checked');
+    const paths = [];
+    for (const cb of checked) {
+      paths.push(cb.dataset.fullpath);
+    }
+    return paths;
+  }
+
+  function confirmDeleteVol02() {
+    const paths = getSelectedVol02Paths();
+    if (paths.length === 0) return;
+    const msg = `即将删除以下 ${paths.length} 个目录：\n${paths.join('\n')}\n\n⚠️ 此操作不可恢复！`;
+    if (!confirm(msg)) return;
+    doDeleteVol02(paths);
+  }
+
+  async function doDeleteVol02(paths) {
+    const status = $('vol02-status');
+    status.className = 'loading';
+    status.textContent = '⏳ 正在删除...';
+
+    try {
+      const result = await API.post('api/delete', { paths: paths, delete_users: false });
+      const total = result.total || 0;
+      const failures = result.failures || 0;
+      let msg = `📁 已删除: ${total} 个`;
+      if (failures > 0) msg += `，失败 ${failures} 个`;
+      status.className = failures > 0 ? 'warning' : 'success';
+      status.textContent = msg;
+      alert(msg);
+      // Reload vol02 list
+      App.vol02Loaded = false;
+      loadVol02();
+      App.vol02Loaded = true;
+    } catch (e) {
+      status.className = 'error';
+      status.textContent = '❌ 删除失败: ' + e.message;
     }
   }
 
@@ -506,5 +551,6 @@
   window.switchTab = switchTab;
   window.loadMounts = loadMounts;
   window.loadVol02 = loadVol02;
+  window.confirmDeleteVol02 = confirmDeleteVol02;
 
 })();
