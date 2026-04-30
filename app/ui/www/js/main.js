@@ -664,7 +664,7 @@
     status.textContent = '⏳ 正在删除...';
 
     try {
-      const result = await API.post('api/docker_delete', { volumes: volNames });
+      const result = await API.post('api/volumes/delete', { volumes: volNames });
       const total = result.total || 0;
       const failures = result.failures || 0;
       let msg = `📁 已删除: ${total} 个卷`;
