@@ -321,66 +321,53 @@ do_vol02() {
     local json_file="/etc/mountmgr/mount_info.json"
     local vol02_base="/vol02"
 
-    # Get all subdirectories in /vol02
-    local vol02_dirs=""
-    local first=1
+    # Get all subdirectories in /vol02 - build JSON array directly with jq
+    local vol02_dirs="[]"
     if [ -d "$vol02_base" ]; then
+        local vol02_json=""
+        first=1
         for dir in "$vol02_base"/*; do
             [ -d "$dir" ] || continue
             dir_name="${dir##*/}"
             echo "do_vol02: found vol02 subdir=$dir_name" >> "$DEBUG_LOG"
-            [ $first -eq 1 ] && first=0 || vol02_dirs="${vol02_dirs},"
-            vol02_dirs="${vol02_dirs}$(json_str "$dir_name")"
+            [ $first -eq 1 ] && first=0 || vol02_json="${vol02_json},"
+            vol02_json="${vol02_json}$(json_str "$dir_name")"
         done
+        [ -n "$vol02_json" ] && vol02_dirs="[${vol02_json}]"
     else
-        echo "do_vol02: $vol02_base directory does not exist" >> "$DEBUG_LOG"
+        echo "do_vol02: $vol02_base does not exist" >> "$DEBUG_LOG"
     fi
-    [ -z "$vol02_dirs" ] && vol02_dirs="[]" || vol02_dirs="[${vol02_dirs}]"
-
     echo "do_vol02: vol02_dirs=$vol02_dirs" >> "$DEBUG_LOG"
 
-    # Get mounted mountPoints from mount_info.json
+    # Get mounted mountPoints using jq -f filter file
     local mounted_points="[]"
     if [ -f "$json_file" ]; then
         local jq_filter
         jq_filter=$(mktemp)
         cat > "$jq_filter" << 'JQFEOF2'
-        [
-            to_entries[] |
-            .value |
-            to_entries[] |
-            .value |
-            select(.mountPoint != null and .mountPoint != "") |
-            .mountPoint
-        ]
+map(
+    to_entries[] |
+    .value |
+    to_entries[] |
+    .value |
+    select(.mountPoint != null and .mountPoint != "") |
+    .mountPoint
+)
 JQFEOF2
-        mounted_points=$(jq -c -f "$jq_filter" "$json_file" 2>>"$DEBUG_LOG")
+        echo "do_vol02: running jq with filter file" >> "$DEBUG_LOG"
+        mounted_points=$(jq -c -f "$jq_filter" "$json_file")
         local jq_ret=$?
-        echo "do_vol02: jq return=$jq_ret, mounted_points=$mounted_points" >> "$DEBUG_LOG"
+        echo "do_vol02: jq return=$jq_ret" >> "$DEBUG_LOG"
+        echo "do_vol02: mounted_points raw='$mounted_points'" >> "$DEBUG_LOG"
         rm -f "$jq_filter"
     else
         echo "do_vol02: $json_file does not exist" >> "$DEBUG_LOG"
     fi
-
     [ -z "$mounted_points" ] && mounted_points="[]"
 
-    # Compute unmounted: vol02_dirs - mounted_set (extract last path component from mountPoint)
-    local unmounted_json=""
-    first=1
-    # Parse vol02_dirs JSON array
-    echo "$vol02_dirs" | grep -oE '"[^"]*"' | tr -d '"' | while IFS= read -r dir; do
-        echo "do_vol02: checking vol02_dir=$dir" >> "$DEBUG_LOG"
-        # Check if this dir name appears in any mounted_points
-        local found=0
-        for mp in $(echo "$mounted_points" | grep -oE '"[^"]*"' | tr -d '"'); do
-            local mp_name="${mp##*/}"
-            echo "do_vol02: compare dir=$dir with mp=$mp mp_name=$mp_name" >> "$DEBUG_LOG"
-            [ "$dir" = "$mp_name" ] && found=1 && break
-        done
-        [ $found -eq 0 ] && echo "do_vol02: UNMOUNTED dir=$dir" >> "$DEBUG_LOG"
-    done
-
-    echo "do_vol02: final response vol02_dirs=$vol02_dirs mounted_points=$mounted_points" >> "$DEBUG_LOG"
+    echo "do_vol02: final response" >> "$DEBUG_LOG"
+    echo "do_vol02: vol02_dirs=$vol02_dirs" >> "$DEBUG_LOG"
+    echo "do_vol02: mounted_points=$mounted_points" >> "$DEBUG_LOG"
 
     http_response "200 OK" "application/json" "{\"vol02_dirs\": ${vol02_dirs}, \"mounted_points\": ${mounted_points}, \"success\": true}"
 }
